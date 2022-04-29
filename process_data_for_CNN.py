@@ -133,7 +133,7 @@ def process_test_val_data(dataset, MTN, seed):
         Y = Y.numpy().reshape(17*24)
         i_a = np.where(Y == 1)[0]
         i_n = np.where(Y == 0)[0]
-        split_img = only_split(X)
+        split_img = encode_split(ae, X)
         defects = defects + len(i_a)
         if len(i_a) > 0:
             def_imgs = split_img[i_a, :]
@@ -149,15 +149,15 @@ def process_test_val_data(dataset, MTN, seed):
     dataset_epoch = tf.data.Dataset.from_tensor_slices((img_list, lbl_list))
     return dataset_epoch, img_list, lbl_list
 
-_, train_img_list, train_lbl_list = process_train_data(train_def_dataset, MTN, seed=1)
-#np.save('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_img_list_noae_%i.npy' % MTN, train_img_list)
-#np.save('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_lbl_list_noae_%i.npy' % MTN, train_lbl_list)
+_, train_img_list, train_lbl_list = process_test_val_data(train_def_dataset, MTN, seed=1)
+np.save('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_img_list_noaug_%i.npy' % MTN, train_img_list)
+np.save('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_lbl_list_noaug_%i.npy' % MTN, train_lbl_list)
 
-_, test_img_list, test_lbl_list = process_test_val_data(test_def_dataset, MTN, seed = 2)
+#_, test_img_list, test_lbl_list = process_test_val_data(test_def_dataset, MTN, seed = 2)
 #np.save('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'test_img_list_noae_%i.npy' % MTN, test_img_list)
 #np.save('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'test_lbl_list_noae_%i.npy' % MTN, test_lbl_list)
 
-_, val_img_list, val_lbl_list = process_test_val_data(val_def_dataset, MTN, seed = 3)
+#_, val_img_list, val_lbl_list = process_test_val_data(val_def_dataset, MTN, seed = 3)
 #np.save('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'val_img_list_noae_%i.npy' % MTN, val_img_list)
 #np.save('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'val_lbl_list_noae_%i.npy' % MTN, val_lbl_list)
 

@@ -37,7 +37,10 @@ train_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/proc
 train_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_lbl_list_noaug_%i.npy' % MTN)
 test_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'test_img_list_%i.npy' % MTN)
 test_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'test_lbl_list_%i.npy' % MTN)
+test_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'test_img_list_%i.npy' % MTN)
+test_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'test_lbl_list_%i.npy' % MTN)
 
+print(len(train_img_list), len(test_img_list))
 processed_train_dataset = tf.data.Dataset.from_tensor_slices((train_img_list, train_lbl_list))
 processed_test_dataset = tf.data.Dataset.from_tensor_slices((test_img_list, test_lbl_list))
 
