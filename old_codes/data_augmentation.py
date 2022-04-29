@@ -115,6 +115,7 @@ for epoch in range(epochs):
         i_a = np.where(Y_train == 1)[0]
         i_n = np.where(Y_train == 0)[0]
         split_img = encode_split(X_train, i_a)
+        print(Y_train[:11])
         defects = defects + len(i_a)
         if len(i_a) > 0:
             def_imgs = split_img[i_a, :]

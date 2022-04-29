@@ -46,9 +46,9 @@ val_dataset = create_dataset(X_val_list, _shuffle=True).batch(batch_size)
 xshape = 2736
 #val_dataset = val_dataset.map(lambda item: tuple(tf.py_function(resize, [item], [tf.float32,])))
 
-model = 'TQ2'
-savemodel = 'TQ2_1'
-epoch = '84'
+model = 'TQ3'
+savemodel = 'TQ3_1_cont'
+epoch = '500'
 print('model: ', model , 'savemodel: ', savemodel, 'epoch: ', epoch)
 
 saveloc = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/plots/'+savemodel
@@ -56,7 +56,10 @@ Path(saveloc).mkdir(parents=True, exist_ok=True)
 
 ae = AutoEncoder()
 ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/'+savemodel+'/model_AE_'+model+'_'+epoch+'_to_'+epoch+'_epochs')
-#ae.compile()
+#ae.build(input_shape=(PICTURESIZE_Y, PICTURESIZE_X, 1))
+
+print(ae.encoder.summary())
+print(ae.decoder.summary())
 
 with open('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/'+savemodel+'/cost.pkl', 'rb') as f:
     x = pickle.load(f)

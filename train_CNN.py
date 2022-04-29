@@ -20,6 +20,8 @@ parser.add_argument("--epochs", type=int,
                     help="Number of epochs for the training", default=50, required=False)
 parser.add_argument("--lr", type=float,
                     help="Learning rate", default=1e-3, required=False)
+parser.add_argument("--is_ae", type=int,
+                    help="Are images aed", default=0, required=True)
 parser.add_argument("--gpu", type=str,
                     help="Which gpu to use", default="3", required=False)
 parser.add_argument("--savename", type=str,
@@ -37,6 +39,7 @@ gpu = args.gpu
 savename = args.savename
 load = args.load
 lr = args.lr
+is_ae = args.is_ae
 cont_epoch = args.contfromepoch
 
 os.environ["CUDA_VISIBLE_DEVICES"] = gpu
@@ -80,21 +83,14 @@ if load == 'True':
     print('Loading model...')
     model = tf.keras.models.load_model('saved_class/%s/cnn_%s_epoch_%i' % (savename, savename,cont_epoch))
     testing_scores = np.load('losses/%s/test_loss_%s.npy' % (savename, savename))
+    testing_scores = list(testing_scores)
     training_scores = np.load('losses/%s/train_loss_%s.npy' % (savename, savename))
+    training_scores = list(training_scores)
+
 else:
     cont_epoch = 1
     training_scores, testing_scores = list(), list()
     from CNNs import *
-    if model_ID == 'model_small':
-        model = model_small
-    if model_ID == 'model_init':
-        model = model_init
-    if model_ID == 'model_init2':
-        model = model_init2
-    if model_ID == 'model_init3':
-        model = model_init3
-    if model_ID == 'model_init2_lessr':
-        model = model_init2_lessr
     if model_ID == 'model_init2_lessr2':
         model = model_init2_lessr2
     if model_ID == 'model_init2_lessr2_larger':
@@ -107,19 +103,29 @@ else:
         model = model_init2_lessr2_larger3
     if model_ID == 'model_works3':
         model = model_works3
-
+    if model_ID == 'model_works_newdatasplit':
+        model = model_works_newdatasplit
+    if model_ID == 'model_works_simplest':
+        model = model_works_simplest
 
 print(model.summary())
 
 optimizer = tf.keras.optimizers.Adam(lr)
-#model.compile(optimizer= optimizer, loss=bce, metrics= [bce])
 
 #how many normal images for each defective
 MTN = 1
-train_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_img_list_noae_%i.npy' % MTN)
-train_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_lbl_list_noae_%i.npy' % MTN)
-test_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'val_img_list_noae_%i.npy' % MTN)
-test_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'val_lbl_list_noae_%i.npy' % MTN)
+if is_ae == 1:
+    print('No AE')
+    train_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_img_list_noae_%i.npy' % MTN)
+    train_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_lbl_list_noae_%i.npy' % MTN)
+    test_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'val_img_list_noae_%i.npy' % MTN)
+    test_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'val_lbl_list_noae_%i.npy' % MTN)
+if is_ae == 0:
+    print('AE is used')
+    train_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_img_list_%i.npy' % MTN)
+    train_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_lbl_list_%i.npy' % MTN)
+    test_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'val_img_list_%i.npy' % MTN)
+    test_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'val_lbl_list_%i.npy' % MTN)
 
 processed_train_dataset = tf.data.Dataset.from_tensor_slices((train_img_list, train_lbl_list)).shuffle(train_img_list.shape[0], reshuffle_each_iteration=True).batch(batch_size, drop_remainder=True)
 processed_test_dataset = tf.data.Dataset.from_tensor_slices((test_img_list, test_lbl_list)).batch(1)

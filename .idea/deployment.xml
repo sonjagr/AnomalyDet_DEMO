@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="sgroenro@pclcdgpu" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
       <paths name="sgroenro@pclcdgpu">
         <serverdata>
           <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/afs/cern.ch/user/s/sgroenro/anomaly_detection" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>
@@ -27,6 +27,20 @@
         <serverdata>
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="sgroenro@pclcdgpu (12)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/afs/cern.ch/user/s/sgroenro/anomaly_detection" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="sgroenro@pclcdgpu (13)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/afs/cern.ch/user/s/sgroenro/anomaly_detection" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>
@@ -54,7 +68,7 @@
       <paths name="sgroenro@pclcdgpu (5)">
         <serverdata>
           <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/afs/cern.ch/user/s/sgroenro/anomaly_detection" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
@@ -107,6 +121,21 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="sgroenro@pclcdgpu:22 (4)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/afs/cern.ch/user/s/sgroenro/anomaly_detection/" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="sgroenro@pclcdgpu:22 (5)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/afs/cern.ch/user/s/sgroenro/anomaly_detection" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
     </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>

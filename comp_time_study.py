@@ -77,7 +77,7 @@ encode_times = []
 split_times = []
 predict_times = []
 tot_times = []
-for i in range(0,100):
+for i in range(0,10):
     print(i)
     for i in range(0,10):
         y=Y_test_det_list[i]

@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve
 from sklearn import metrics
 random.seed(42)
-os.environ["CUDA_VISIBLE_DEVICES"] = "4"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 tf.keras.backend.clear_session()
 
@@ -22,9 +22,10 @@ def compute_loss_test(model, x, y_ref):
     reconstruction_error = bce(y_ref, y)
     return reconstruction_error
 
-#savename = 'works3_bs128'
-savename = 'works2_noae'
-cont_epoch = 16
+savename = 'works3_bs128'
+savename = 'new_run_simple_ae'
+#savename = 'works2_noae'
+cont_epoch = 40
 
 base_dir = 'db/'
 dir_det = 'DET/'
@@ -73,17 +74,17 @@ fpr , tpr , thresholds = roc_curve(test_lbl_list, test_pred)
 auc = metrics.auc(fpr, tpr)
 
 def plot_roc_curve(fpr, tpr, auc):
-    ifpr = []
-    for i in fpr:
-        ifpr.append(1-i)
+    itpr = []
+    for i in tpr:
+        itpr.append(1-i)
     plt.plot(fpr, tpr, label = 'AUC = '+str(round(auc, 2)))
     #plt.axis([0, 1, 0, 1])
     plt.plot(np.arange(0,1.1,0.1), np.arange(0,1.1,0.1), linestyle = '--', color = 'gray')
     plt.xlabel('False Positive Rate/(1-Specificity)')
     plt.ylabel('True Positive Rate/Sensitivity')
-    plt.xscale('log')
+    #plt.xscale('log')
     plt.grid()
-    plt.legend()
+    plt.legend(loc = 'lower right')
     plt.show()
 
 def plot_examples(test_pred_plot, test_true_plot, test_img_plot, saveas):
@@ -122,15 +123,19 @@ print('AUC: ', auc)
 test_pred_plot = test_pred[0:6]
 test_true_plot = test_lbl_list[0:6]
 test_img_plot = test_img_list[0:6, :, :]
-#plot_examples(test_pred_plot, test_true_plot, test_img_plot, '0')
+plot_examples(test_pred_plot, test_true_plot, test_img_plot, '0')
 test_pred_plot = test_pred[6:12]
 test_true_plot = test_lbl_list[6:12]
 test_img_plot = test_img_list[6:12, :, :]
-#plot_examples(test_pred_plot, test_true_plot, test_img_plot, '2')
+plot_examples(test_pred_plot, test_true_plot, test_img_plot, '2')
 test_pred_plot = test_pred[12:18]
 test_true_plot = test_lbl_list[12:18]
 test_img_plot = test_img_list[12:18, :, :]
-#plot_examples(test_pred_plot, test_true_plot, test_img_plot, '1')
+plot_examples(test_pred_plot, test_true_plot, test_img_plot, '1')
+test_pred_plot = test_pred[-6::-1]
+test_true_plot = test_lbl_list[-6::-1]
+test_img_plot = test_img_list[-6::-1, :, :]
+plot_examples(test_pred_plot, test_true_plot, test_img_plot, '3')
 print('Testing score: ', test_score)
 
 def rounding_thresh(input, thresh):
