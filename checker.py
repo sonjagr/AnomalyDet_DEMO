@@ -12,13 +12,17 @@ import matplotlib.pyplot as plt
 random.seed(42)
 
 MTN = 1
-train_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/' +'train_img_list_%i.npy' % MTN)
-train_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/' +'train_lbl_list_%i.npy' % MTN)
-val_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/' +'val_img_list_%i.npy' % MTN)
-val_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/' +'val_lbl_list_%i.npy' % MTN)
-test_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/' +'test_img_list_%i.npy' % MTN)
-test_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/' +'test_lbl_list_%i.npy' % MTN)
+train_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/' +'train_img_list_%i.npy' % MTN)
+train_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/' +'train_lbl_list_%i.npy' % MTN)
+val_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/' +'val_img_list_%i.npy' % MTN)
+val_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/' +'val_lbl_list_%i.npy' % MTN)
+test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/' +'test_img_list_%i.npy' % MTN)
+test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/' +'test_lbl_list_%i.npy' % MTN)
 
+for i in train_img_list:
+    minim = np.min(i)
+    if minim < 0:
+        print(minim)
 
 def plot_examples(test_pred_plot, test_true_plot, test_img_plot, saveas):
     test_pred_plot = np.round(test_pred_plot, 2)

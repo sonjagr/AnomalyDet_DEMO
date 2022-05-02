@@ -1,9 +1,8 @@
 import tensorflow as tf
 from common import *
 
-
 model_works_newdatasplit = tf.keras.Sequential([
-    tf.keras.layers.InputLayer(input_shape=(160,160,1)),
+    tf.keras.layers.InputLayer(input_shape=(160,160, 1)),
     tf.keras.layers.experimental.preprocessing.Rescaling(1. / EIGHTBITMAX),
     tf.keras.layers.Conv2D(filters=8, kernel_size=(4,4), strides=(4,4), kernel_regularizer=tf.keras.regularizers.l2(l=0.01), padding="valid",activation='relu'),
     tf.keras.layers.Dropout(0.2),

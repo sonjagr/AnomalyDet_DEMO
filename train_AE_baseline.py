@@ -89,3 +89,27 @@ print(cm)
 print('Test tn, fp, fn, tp:  ', tn, fp, fn, tp)
 print('FPR: ', fp/(fp+tn))
 print('FNR: ', fn/(fn+tp))
+
+def plot_roc_curve(fpr, tpr, auc):
+    itpr = []
+    for i in tpr:
+        itpr.append(1-i)
+    plt.plot(fpr, tpr, label = 'AUC = '+str(round(auc, 2)))
+    #plt.axis([0, 1, 0, 1])
+    plt.plot(np.arange(0,1.1,0.1), np.arange(0,1.1,0.1), linestyle = '--', color = 'gray')
+    plt.xlabel('False Positive Rate/(1-Specificity)')
+    plt.ylabel('True Positive Rate/Sensitivity')
+    #plt.xscale('log')
+    plt.grid()
+    plt.legend(loc = 'lower right')
+    plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/baseline.png', dpi=600)
+    plt.show()
+from sklearn.metrics import roc_curve
+from sklearn import metrics
+
+fpr , tpr , thresholds = roc_curve(true, pred)
+from sklearn.metrics import roc_curve
+
+auc = metrics.auc(fpr, tpr)
+plot_roc_curve(fpr, tpr, auc)
+print('AUC: ', auc)

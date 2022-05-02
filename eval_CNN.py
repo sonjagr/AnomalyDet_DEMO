@@ -23,17 +23,17 @@ def compute_loss_test(model, x, y_ref):
     return reconstruction_error
 
 savename = 'works3_bs128'
-savename = 'new_run_simple_ae'
+savename = 'notf'
 #savename = 'works2_noae'
-cont_epoch = 40
+cont_epoch = 199
 
 base_dir = 'db/'
 dir_det = 'DET/'
 MTN = 1
 
 images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
-test_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'test_img_list_%i.npy' % MTN)
-test_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'test_lbl_list_%i.npy' % MTN)
+test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'test_img_list_bright_%i.npy' % MTN)
+test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'test_lbl_list_bright_%i.npy' % MTN)
 
 test_loss = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/losses/%s/test_loss_%s.npy' % (savename, savename))
 train_loss = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/losses/%s/train_loss_%s.npy' % (savename, savename))
