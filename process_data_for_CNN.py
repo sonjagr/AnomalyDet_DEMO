@@ -42,15 +42,8 @@ def encode_split(ae, img):
 def encode_bright_split(ae, img):
     img = img[0].numpy().reshape(1, 2736, 3840, 1)[:, :2720, :, :]
 
-    im = np.uint8(img)
-    value = random.choice(np.arange(-51,51))
-    value = np.uint8(value)
-
-    lim = 255 - value
-    im[im > lim] = 255
-    im[im <= lim] += value
-
-    img = im
+    value = random.choice(np.arange(0.75, 1.25, 0.01))
+    img = np.multiply(img, value)
 
     encoded_img = ae.encode(img)
     decoded_img = ae.decode(encoded_img).numpy()
@@ -59,6 +52,18 @@ def encode_bright_split(ae, img):
     split_img = tf.image.extract_patches(images=aed_img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1],rates=[1, 1, 1, 1], padding='VALID')
     split_img = split_img.numpy().reshape(17 * 24, 160 * 160)
     return split_img
+
+def only_bright_split(img):
+    img = img[0].numpy().reshape(1, 2736, 3840, 1)[:, :2720, :, :]
+
+    value = random.choice(np.arange(0.75, 1.25, 0.01))
+
+    img = np.multiply(img, value)
+
+    split_img = tf.image.extract_patches(images=img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1],rates=[1, 1, 1, 1], padding='VALID')
+    split_img = split_img.numpy().reshape(17 * 24, 160 * 160)
+    return split_img
+
 
 def only_split(img):
     img = img[0].numpy().reshape(1, 2736, 3840, 1)[:, :2720, :, :]
@@ -104,13 +109,6 @@ def process_train_data(dataset, MTN, seed):
         defects = defects + len(i_a)
         if len(i_a) > 0:
             def_imgs = split_img[i_a, :]
-
-            #if len(i_a) == 3:
-            #    fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
-            #    ax1.imshow(def_imgs[0].reshape(160, 160))
-            #    ax2.imshow(def_imgs[1].reshape(160, 160))
-            #    ax3.imshow(def_imgs[2].reshape(160, 160))
-            #    plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/plots/testing/split_test3.png')
 
             rotated = np.array([rotate_img(item) for item in def_imgs])
             def_imgs = np.append(def_imgs, rotated, axis=0)
@@ -162,7 +160,7 @@ def process_test_val_bright_data(dataset, MTN, seed):
         Y = Y.numpy().reshape(17*24)
         i_a = np.where(Y == 1)[0]
         i_n = np.where(Y == 0)[0]
-        split_img = encode_bright_split(ae, X)
+        split_img = only_bright_split(X)
         defects = defects + len(i_a)
         if len(i_a) > 0:
             def_imgs = split_img[i_a, :]
@@ -183,8 +181,8 @@ def process_test_val_bright_data(dataset, MTN, seed):
 #np.save('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_noae_%i.npy' % MTN, train_lbl_list)
 
 _, test_img_list, test_lbl_list = process_test_val_bright_data(test_def_dataset, MTN, seed = 2)
-np.save('/data/HGC_Si_scratch_detection_data/processed/'+'test_img_list_bright_%i.npy' % MTN, test_img_list)
-np.save('/data/HGC_Si_scratch_detection_data/processed/'+'test_lbl_list_bright_%i.npy' % MTN, test_lbl_list)
+np.save('/data/HGC_Si_scratch_detection_data/processed/'+'test_img_list_bright_noae_%i.npy' % MTN, test_img_list)
+np.save('/data/HGC_Si_scratch_detection_data/processed/'+'test_lbl_list_bright_noae_%i.npy' % MTN, test_lbl_list)
 
 #_, val_img_list, val_lbl_list = process_test_val_data(val_def_dataset, MTN, seed = 3)
 #np.save('/data/HGC_Si_scratch_detection_data/processed/'+'val_img_list_noae_%i.npy' % MTN, val_img_list)

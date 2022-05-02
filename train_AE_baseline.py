@@ -11,19 +11,9 @@ import random, argparse
 import matplotlib.pyplot as plt
 random.seed(42)
 
-gpu = "4"
+gpu = "3"
 
 os.environ["CUDA_VISIBLE_DEVICES"] = gpu
-
-def classifier_scores(test_loss, train_loss, title):
-    plt.plot(np.arange(0,len(test_loss)), test_loss, label = 'Test loss')
-    plt.plot(np.arange(0,len(train_loss)), train_loss, linestyle= '--', label = 'Train loss')
-    plt.grid()
-    plt.legend()
-    plt.xlabel('Epoch')
-    plt.ylabel('Binary cross-entropy')
-    plt.title(title)
-    plt.show()
 
 bce = tf.keras.losses.BinaryCrossentropy()
 
@@ -33,33 +23,48 @@ images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 
 #how many normal images for each defective
 MTN = 1
-train_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_img_list_noaug_%i.npy' % MTN)
-train_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_lbl_list_noaug_%i.npy' % MTN)
-test_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'test_img_list_%i.npy' % MTN)
-test_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'test_lbl_list_%i.npy' % MTN)
-test_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'test_img_list_%i.npy' % MTN)
-test_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'test_lbl_list_%i.npy' % MTN)
+train_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_noaug_%i.npy' % MTN)
+train_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_noaug_%i.npy' % MTN)
+test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'test_img_list_%i.npy' % MTN)
+test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'test_lbl_list_%i.npy' % MTN)
+
+train_means = []
+for x in train_img_list:
+    train_means.append(np.mean(x))
+
+from sklearn.preprocessing import MinMaxScaler
+train_means = np.array(train_means).reshape(-1, 1)
+scaler = MinMaxScaler()
+train_means = scaler.fit_transform(train_means).flatten()
+
+test_means = []
+for x in test_img_list:
+    test_means.append(np.mean(x))
+
+test_means = np.array(test_means).reshape(-1, 1)
+test_means = scaler.transform(test_means).flatten()
 
 print(len(train_img_list), len(test_img_list))
-processed_train_dataset = tf.data.Dataset.from_tensor_slices((train_img_list, train_lbl_list))
 processed_test_dataset = tf.data.Dataset.from_tensor_slices((test_img_list, test_lbl_list))
 
 normal, anomalous = [], []
 normal_test, anomalous_test = [],[]
-for x, y in tqdm(processed_train_dataset, total=tf.data.experimental.cardinality(processed_train_dataset).numpy()):
+for x, y in zip(train_means, train_lbl_list):
     if y == 0:
-        normal.append(np.mean(x))
+        normal.append(x)
     if y == 1:
-        anomalous.append(np.mean(x))
-print(len(normal), len(anomalous))
+        anomalous.append(x)
 
+th = 0.54
+plt.figure(1)
 plt.hist(anomalous,  bins = int(np.sqrt(len(anomalous))), density = True, alpha = 0.5, color = 'red', label='Anomalous', zorder = 3)
 plt.hist(normal, bins = int(np.sqrt(len(normal))),  density = True, alpha = 0.5,color = 'green', label = 'Non-anomalous',zorder = 3)
 plt.grid(zorder = 1)
-plt.xlabel('Reconstruction error', fontsize = 12)
-plt.plot([27, 27,27,27], [0.0,0.05,0.2,0.45], linestyle = '--', color = 'black', label='Threshold = 27.1')
-plt.ylim(0,0.45)
-plt.legend()
+plt.xlabel('Mean pixel-wise reconstruction error', fontsize = 12)
+#plt.plot([th, th,th,th], [0.0,0.05,0.2,0.45], linestyle = '--', color = 'black', label='Threshold = 27.1')
+plt.plot([th, th,th,th], [0.0,4,6,8.6], linestyle = '--', color = 'black', label='Threshold = 0.54')
+plt.ylim(0,8.5)
+plt.legend(loc = 'upper left', fontsize = 12)
 plt.show()
 
 threshold = 27.1
@@ -82,6 +87,13 @@ for x, y in tqdm(processed_test_dataset, total=tf.data.experimental.cardinality(
         pred_pos = pred_pos + 1
 print(true_pos)
 print(pred_pos)
+
+def rounding_thresh(input, thresh):
+    rounded = np.round(input - thresh + 0.5)
+    return rounded
+
+pred = rounding_thresh(np.array(test_means), 0.54)
+
 tn, fp, fn, tp = confusion_matrix(true, pred, labels=[0,1]).ravel()
 
 cm= confusion_matrix(true, pred, labels=[0,1])
@@ -97,19 +109,18 @@ def plot_roc_curve(fpr, tpr, auc):
     plt.plot(fpr, tpr, label = 'AUC = '+str(round(auc, 2)))
     #plt.axis([0, 1, 0, 1])
     plt.plot(np.arange(0,1.1,0.1), np.arange(0,1.1,0.1), linestyle = '--', color = 'gray')
-    plt.xlabel('False Positive Rate/(1-Specificity)')
-    plt.ylabel('True Positive Rate/Sensitivity')
+    plt.xlabel('False Positive Rate/(1-Specificity)', fontsize = 12)
+    plt.ylabel('True Positive Rate/Sensitivity', fontsize = 12)
     #plt.xscale('log')
     plt.grid()
-    plt.legend(loc = 'lower right')
+    plt.legend(loc = 'lower right', fontsize = 12)
     plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/baseline.png', dpi=600)
     plt.show()
 from sklearn.metrics import roc_curve
 from sklearn import metrics
 
-fpr , tpr , thresholds = roc_curve(true, pred)
-from sklearn.metrics import roc_curve
-
+fpr , tpr , thresholds = roc_curve(true, test_means)
 auc = metrics.auc(fpr, tpr)
+plt.figure(2)
 plot_roc_curve(fpr, tpr, auc)
 print('AUC: ', auc)

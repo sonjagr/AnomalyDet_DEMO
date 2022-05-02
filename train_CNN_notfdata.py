@@ -3,10 +3,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix, log_loss
-from helpers.dataset_helpers import create_cnn_dataset
 from autoencoders import *
-from common import *
-from scipy.ndimage.interpolation import rotate
 import random, argparse
 import matplotlib.pyplot as plt
 random.seed(42)
@@ -44,16 +41,6 @@ cont_epoch = args.contfromepoch
 
 os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
-def classifier_scores(test_loss, train_loss, title):
-    plt.plot(np.arange(0,len(test_loss)), test_loss, label = 'Test loss')
-    plt.plot(np.arange(0,len(train_loss)), train_loss, linestyle= '--', label = 'Train loss')
-    plt.grid()
-    plt.legend()
-    plt.xlabel('Epoch')
-    plt.ylabel('Binary cross-entropy')
-    plt.title(title)
-    plt.show()
-
 base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
 dir_det = 'DET/'
 images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
@@ -70,22 +57,12 @@ else:
     cont_epoch = 1
     training_scores, testing_scores = list(), list()
     from CNNs import *
-    if model_ID == 'model_init2_lessr2':
-        model = model_init2_lessr2
-    if model_ID == 'model_init2_lessr2_larger':
-        model = model_init2_lessr2_larger
-    if model_ID == 'model_init2_lessr2_larger2':
-        model = model_init2_lessr2_larger2
-    if model_ID == 'model_init2_lessr2_larger_noae':
-        model = model_init2_lessr2_larger_noae
-    if model_ID == 'model_init2_lessr2_larger3':
-        model = model_init2_lessr2_larger3
-    if model_ID == 'model_works3':
-        model = model_works3
+    if model_ID == 'model_simple':
+        model = model_simple
+    if model_ID == 'model_simple_noae':
+        model = model_simple_noae
     if model_ID == 'model_works_newdatasplit':
         model = model_works_newdatasplit
-    if model_ID == 'model_works_simplest':
-        model = model_works_simplest
 
 print(model.summary())
 
@@ -107,18 +84,15 @@ if is_ae == 0:
     test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_img_list_%i.npy' % MTN)
     test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_lbl_list_%i.npy' % MTN)
 
-def del_negs(lista):
-    for i in range(0, len(lista)):
-        minim = np.min(lista[i])
-        if minim < 0:
-            lista[i] = lista[i]+abs(minim)
-    return lista
-
+print('max of training data', np.max(train_img_list))
+print('max of test data', np.max(test_img_list))
 
 print(np.min(train_img_list))
 print(np.min(test_img_list))
 
 from sklearn.utils import shuffle
+
+print('Train shape', len(train_img_list), len(train_lbl_list))
 
 for epoch in range(cont_epoch, epochs):
     print("\nStart of epoch %d" % (epoch,))
@@ -131,11 +105,11 @@ for epoch in range(cont_epoch, epochs):
     train_img_batches =  np.split(train_img_list_cut, 50, axis=0)
     train_lbl_batches = np.split(train_lbl_list_cut, 50, axis=0)
     print(np.array(train_img_batches).shape)
-    for x_batch, y_batch in tqdm(zip(train_img_batches, train_lbl_batches), total=50):
+    for x_batch, y_batch in tqdm(zip(train_img_batches, train_lbl_batches), total=len(train_lbl_batches)):
         model.fit(x_batch, y_batch, verbose = 0)
-        train_scores_epoch.append(log_loss(y_batch, model.predict(x_batch).astype("float64")))
-
-    training_scores.append(np.mean(train_scores_epoch))
+        train_loss_batch = log_loss(y_batch, model.predict(x_batch).astype("float64"))
+        train_scores_epoch.append(train_loss_batch)
+        training_scores.append(train_loss_batch)
     print('Training loss: ', np.mean(train_scores_epoch))
     try:
         os.makedirs('saved_class/%s' % savename)
@@ -146,7 +120,6 @@ for epoch in range(cont_epoch, epochs):
     print('Model checkpoint saved to ', model_saveto)
 
     print('\nStarting testing:')
-
 
     test_pred = model.predict(test_img_list)
     test_loss = log_loss(test_lbl_list, test_pred.astype("float64"))

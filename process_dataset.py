@@ -7,8 +7,6 @@ from sklearn.model_selection import train_test_split
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 
-
-
 np.random.seed(42)
 f = 'db/three_annotations/main_db_bb_crop.h5'
 with pd.HDFStore(DataBaseFileLocation_gpu + f,  mode='r') as store:

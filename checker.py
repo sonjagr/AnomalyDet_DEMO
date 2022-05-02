@@ -75,6 +75,15 @@ plot_examples(test_pred_plot, test_true_plot, test_img_plot, '0')
 test_true_plot = train_lbl_list[30:36]
 test_img_plot = train_img_list[30:36, :, :]
 plot_examples(test_pred_plot, test_true_plot, test_img_plot, '0')
+test_true_plot = train_lbl_list[36:42]
+test_img_plot = train_img_list[36:42, :, :]
+plot_examples(test_pred_plot, test_true_plot, test_img_plot, '0')
+test_true_plot = train_lbl_list[42:48]
+test_img_plot = train_img_list[42:48, :, :]
+plot_examples(test_pred_plot, test_true_plot, test_img_plot, '0')
+test_true_plot = train_lbl_list[48:54]
+test_img_plot = train_img_list[48:54, :, :]
+plot_examples(test_pred_plot, test_true_plot, test_img_plot, '0')
 
 
 

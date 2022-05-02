@@ -1,6 +1,7 @@
 import tensorflow as tf
 from common import *
 
+
 model_works_newdatasplit = tf.keras.Sequential([
     tf.keras.layers.InputLayer(input_shape=(160,160, 1)),
     tf.keras.layers.experimental.preprocessing.Rescaling(1. / EIGHTBITMAX),
@@ -16,21 +17,35 @@ model_works_newdatasplit = tf.keras.Sequential([
     tf.keras.layers.Flatten(),
 ])
 
-model_works_simplest = tf.keras.Sequential([
-    tf.keras.layers.InputLayer(input_shape=(160,160,1)),
-    tf.keras.layers.experimental.preprocessing.Rescaling(1. / EIGHTBITMAX),
-    tf.keras.layers.Conv2D(filters=8, kernel_size=(4,4), strides=(4,4), padding="valid",activation='relu'),
+
+model_simple = tf.keras.Sequential([
+    tf.keras.layers.InputLayer(input_shape=(160, 160, 1)),
+    tf.keras.layers.experimental.preprocessing.Rescaling(1./219.91),
+    tf.keras.layers.Conv2D(filters=8, kernel_size=(4, 4), strides=(4, 4), kernel_regularizer=tf.keras.regularizers.l2(l=0.01), padding="valid", activation='relu'),
+    tf.keras.layers.Dropout(0.4),
+    tf.keras.layers.Conv2D(filters=16, kernel_size=(8, 8), strides=(8, 8), kernel_regularizer=tf.keras.regularizers.l2(l=0.01), padding="valid", activation='relu'),
     tf.keras.layers.Dropout(0.2),
-    tf.keras.layers.Conv2D(filters=16, kernel_size=(4, 4), strides=(4, 4) , padding="valid", activation='relu'),
+    tf.keras.layers.Conv2D(filters=32, kernel_size=(5, 5), strides=(5, 5), padding="valid", activation='relu' ),
     tf.keras.layers.Dropout(0.2),
-    tf.keras.layers.Conv2D(filters=16, kernel_size=(2,2), strides=(2,2), padding="valid",activation='relu'),
-    tf.keras.layers.Dropout(0.25),
-    tf.keras.layers.Conv2D(filters=32, kernel_size=(5, 5), strides=(5, 5), padding="valid", activation='relu',),
-    tf.keras.layers.Dropout(0.25),
-    tf.keras.layers.Conv2D(filters=1, kernel_size=(1,1), strides=(1,1), activation = 'sigmoid', padding="valid"),
+    tf.keras.layers.Conv2D(filters=1, kernel_size=(1, 1), strides=(1, 1), activation='sigmoid', padding="valid"),
     tf.keras.layers.Flatten(),
 ])
 
+
+model_simple_noae = tf.keras.Sequential([
+    tf.keras.layers.InputLayer(input_shape=(160, 160, 1)),
+    tf.keras.layers.experimental.preprocessing.Rescaling(1./255.),
+    tf.keras.layers.Conv2D(filters=8, kernel_size=(4, 4), strides=(4, 4), kernel_regularizer=tf.keras.regularizers.l2(l=0.01), padding="valid", activation='relu'),
+    tf.keras.layers.Dropout(0.2),
+    tf.keras.layers.Conv2D(filters=16, kernel_size=(8, 8), strides=(8, 8), kernel_regularizer=tf.keras.regularizers.l2(l=0.01), padding="valid", activation='relu'),
+    tf.keras.layers.Dropout(0.2),
+    tf.keras.layers.Conv2D(filters=32, kernel_size=(5, 5), strides=(5, 5), padding="valid", activation='relu' ),
+    tf.keras.layers.Dropout(0.2),
+    tf.keras.layers.Conv2D(filters=1, kernel_size=(1, 1), strides=(1, 1), activation='sigmoid', padding="valid"),
+    tf.keras.layers.Flatten(),
+])
+
+'''
 model_small = tf.keras.Sequential([
     tf.keras.layers.InputLayer(input_shape=(160,160,1)),
     tf.keras.layers.experimental.preprocessing.Rescaling(1. / EIGHTBITMAX),
@@ -182,8 +197,6 @@ model_init2_lessr2_larger3 = tf.keras.Sequential([
     tf.keras.layers.Flatten(),
 ])
 
-
-'''
 model_init3 = tf.keras.Sequential([
     tf.keras.layers.InputLayer(input_shape=(160,160,1)),
     tf.keras.layers.experimental.preprocessing.Rescaling(1. / EIGHTBITMAX),
@@ -196,7 +209,6 @@ model_init3 = tf.keras.Sequential([
     tf.keras.layers.Conv2D(filters=1, kernel_size=(19,19), strides=(19,19), activation = 'sigmoid', padding="valid"),
     tf.keras.layers.Flatten(),
 ])
-'''
 
 model_init3 = tf.keras.Sequential([
     tf.keras.layers.InputLayer(input_shape=(160,160,1)),
@@ -213,3 +225,4 @@ model_init3 = tf.keras.Sequential([
     tf.keras.layers.Flatten(),
 ])
 
+'''
