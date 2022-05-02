@@ -52,7 +52,7 @@ def encode_split(ae, img):
 savename = 'works2'
 cont_epoch = 350
 #model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_class/%s/cnn_%s_epoch_%i' % (savename, savename,cont_epoch))
-model = tf.keras.models.load_model('saved_class/cnn_%s_epoch_%i' % (savename,cont_epoch))
+model = tf.keras.models.load_model('saved_class/cnn_notf_withae_epoch_100')
 
 
 base_dir = 'db/'
@@ -62,15 +62,22 @@ MTN = 1
 images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 images_dir_loc = '/media/gsonja/Samsung_T5/ScratchDetection/MeasurementCampaigns/'
 
-X_test_det_list = np.load(base_dir + dir_det + 'X_test_DET.npy', allow_pickle=True)[:10]
+X_test_det_list = np.load(base_dir + dir_det + 'X_test_DET.npy', allow_pickle=True)
 X_test_det_list = [images_dir_loc + s for s in X_test_det_list]
-
-Y_test_det_list = np.load(base_dir + dir_det + 'Y_test_DET.npy', allow_pickle=True).tolist()[:10]
+print(np.array(X_test_det_list)[0])
+Y_test_det_list = np.load(base_dir + dir_det + 'Y_test_DET.npy', allow_pickle=True).tolist()
 
 bce = tf.keras.losses.BinaryCrossentropy()
+test_def_dataset = create_cnn_dataset(X_test_det_list, Y_test_det_list, _shuffle=False)
 
-print(len(X_test_det_list), len(Y_test_det_list))
+from sklearn.metrics import confusion_matrix, log_loss
 
+def label_to_box(li):
+    x = np.floor(li/24)
+    y = li % 24
+    return x*160, y*160
+
+from matplotlib.patches import Rectangle
 import time
 import timeit
 loss = tf.keras.metrics.Mean()
@@ -78,11 +85,18 @@ encode_times = []
 split_times = []
 predict_times = []
 tot_times = []
-for i in range(0,10):
+for i in range(0,1):
     print(i)
-    for i in range(0,10):
-        y=Y_test_det_list[i]
+    for i in range(0,1):
+        fig, ax = plt.subplots()
+        y=Y_test_det_list[i].flatten()
+        y = np.array(y)
         x = np.load(X_test_det_list[i])
+        ax.imshow(x)
+        print(len(y))
+
+
+        print(y.shape, x.shape)
         x = tf.convert_to_tensor(x, dtype=tf.float32)
         tot1 = time.time()
         img, ae_time, split_time = encode_split(ae, x)
@@ -91,10 +105,22 @@ for i in range(0,10):
         split_times.append(split_time)
         t1 = time.time()
         pred = model.predict(img)
+        ind = 0
+        for j in pred:
+            if j > 0.7:
+                bx, by = label_to_box(ind)
+                rect = Rectangle((by, bx), 160, 160, linewidth=1, edgecolor='r', facecolor='none')
+                ax.add_patch(rect)
+            ind = ind + 1
         tot2 = time.time()
         t2 = time.time()
         tot_times.append(tot2-tot1)
         predict_times.append(t2-t1)
+        plt.show()
+        test_loss = log_loss(y, pred.astype("float64"), labels=[0,1])
+        tn, fp, fn, tp = confusion_matrix(y, np.round(pred)).ravel()
+        print('Test tn, fp, fn, tp:  ', tn, fp, fn, tp)
+        print('test score', test_loss)
 
 print('Encode time ; ', np.mean(encode_times))
 print('Split time ; ', np.mean(split_times))
