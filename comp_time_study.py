@@ -1,26 +1,17 @@
 import numpy as np
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-from tqdm import tqdm
-from sklearn.metrics import confusion_matrix
-from helpers.dataset_helpers import create_cnn_dataset
-from autoencoders2 import *
 from common import *
 from scipy.ndimage.interpolation import rotate
 import random, argparse
-import matplotlib.pyplot as plt
-from sklearn.metrics import roc_curve
-from sklearn import metrics
-import tensorflow as tf
+from autoencoders import *
 random.seed(42)
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
-
-tf.keras.backend.clear_session()
+os.environ["CUDA_VISIBLE_DEVICES"] = "2, 3"
 
 ae = AutoEncoder()
 print('Loading autoencoder...')
 ae.load('saved_class/model_AE_TQ3_500_to_500_epochs')
-#ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
+ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
 
 @tf.function
 def compute_loss_test(model, x, y_ref):
@@ -51,8 +42,8 @@ def encode_split(ae, img):
 #savename = 'works3_bs128'
 savename = 'works2'
 cont_epoch = 350
-#model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_class/%s/cnn_%s_epoch_%i' % (savename, savename,cont_epoch))
-model = tf.keras.models.load_model('saved_class/cnn_%s_epoch_%i' % (savename,cont_epoch))
+model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_class/%s/cnn_%s_epoch_%i' % (savename, savename,cont_epoch))
+#model = tf.keras.models.load_model('saved_class/cnn_%s_epoch_%i' % (savename,cont_epoch))
 
 
 base_dir = 'db/'
@@ -60,7 +51,7 @@ dir_det = 'DET/'
 MTN = 1
 
 images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
-images_dir_loc = '/media/gsonja/Samsung_T5/ScratchDetection/MeasurementCampaigns/'
+#images_dir_loc = '/media/gsonja/Samsung_T5/ScratchDetection/MeasurementCampaigns/'
 
 X_test_det_list = np.load(base_dir + dir_det + 'X_test_DET.npy', allow_pickle=True)[:10]
 X_test_det_list = [images_dir_loc + s for s in X_test_det_list]
@@ -79,7 +70,7 @@ split_times = []
 predict_times = []
 tot_times = []
 for i in range(0,10):
-    print(i)
+    #print(i)
     for i in range(0,10):
         y=Y_test_det_list[i]
         x = np.load(X_test_det_list[i])

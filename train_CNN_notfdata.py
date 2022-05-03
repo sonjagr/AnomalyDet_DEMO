@@ -63,6 +63,8 @@ else:
         model = model_simple_noae
     if model_ID == 'model_works_newdatasplit':
         model = model_works_newdatasplit
+    if model_ID == 'model_works_newdatasplit2':
+        model = model_works_newdatasplit2
 
 print(model.summary())
 
@@ -70,7 +72,7 @@ optimizer = tf.keras.optimizers.Adam(lr)
 model.compile(optimizer = optimizer, loss = 'binary_crossentropy', metrics = ['binary_crossentropy'])
 
 #how many normal images for each defective
-MTN = 1
+MTN = 4
 if is_ae == 1:
     print('No AE')
     train_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_noae_%i.npy' % MTN)
@@ -99,11 +101,11 @@ for epoch in range(cont_epoch, epochs):
     train_scores_epoch = []
     b = 0
     train_img_list, train_lbl_list = shuffle(train_img_list, train_lbl_list)
-    train_img_list_cut = train_img_list[:-12]
-    train_lbl_list_cut = train_lbl_list[:-12]
-
-    train_img_batches =  np.split(train_img_list_cut, 50, axis=0)
-    train_lbl_batches = np.split(train_lbl_list_cut, 50, axis=0)
+    train_img_list_cut = train_img_list[:-30]
+    train_lbl_list_cut = train_lbl_list[:-30]
+    #MTN1 -12 and 50
+    train_img_batches =  np.split(train_img_list_cut, 125, axis=0)
+    train_lbl_batches = np.split(train_lbl_list_cut, 125, axis=0)
     print(np.array(train_img_batches).shape)
     for x_batch, y_batch in tqdm(zip(train_img_batches, train_lbl_batches), total=len(train_lbl_batches)):
         model.fit(x_batch, y_batch, verbose = 0)

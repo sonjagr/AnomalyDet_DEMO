@@ -20,23 +20,27 @@ def visualize_model(model):
     #model.save('/home/gsonja/Desktop/models/')
     plot_model(model, to_file='/home/gsonja/Desktop/models/model.png')
 
+import cv2
 def plot_ae(original, aed, i):
     import matplotlib
     f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 4))
-    ax1.imshow(original, vmin=0, vmax=255)
+    ori_rgb = cv2.cvtColor(original.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
+
+    ax1.imshow(ori_rgb, vmin=0, vmax=255)
     #for i in i_a:
     #    box = box_index_to_coords(i)
     #    rec = matplotlib.patches.Rectangle((int(box[0]), int(box[1])), 160, 160, linewidth=1, edgecolor='r', facecolor='none')
     #    ax[0].add_patch(rec)
-    ax1.set_title('Original')
+    ax1.set_title('Original', fontsize =16)
     ax1.tick_params(axis='both', which='both', bottom=False,left = False,labelbottom=False,labelleft=False)
 
-    ax2.imshow(aed, vmin=0, vmax=255)
-    ax2.set_title('Autoencoded')
+    aed_rgb = cv2.cvtColor(aed.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
+    ax2.imshow(aed_rgb, vmin=0, vmax=255)
+    ax2.set_title('Autoencoded', fontsize =16)
     ax2.tick_params(axis='both', which='both', bottom=False, left = False, labelbottom=False,labelleft=False)
 
     ax3.imshow(np.sqrt((aed-original)**2))
-    ax3.set_title('Difference')
+    ax3.set_title('Difference', fontsize =16)
     ax3.tick_params(axis='both', which='both', bottom=False,left = False,labelbottom=False,labelleft=False)
 
     plt.tight_layout()
@@ -47,15 +51,16 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
 
     f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 4))
     extent = (0, 3840, 0, 2720)
-    ax1.imshow(original, extent=extent, origin="upper", vmin=0, vmax=255)
-    ax1.set_title('Original')
+    ori_rgb = cv2.cvtColor(original.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
+    ax1.imshow(ori_rgb, extent=extent, origin="upper", vmin=0, vmax=255)
+    ax1.set_title('Original', fontsize =16)
 
     x1, x2, y1, y2 = boxX[0], boxX[1], boxY[0], boxY[1]
     xdim = (3840/(x2-x1)*times)/100
     ydim = (2720/(y2-y1)*times)/100
     print('xdimm', xdim)
     axins = ax1.inset_axes([lower[0], lower[1], xdim, ydim])
-    axins.imshow(original,extent=(0, 3840, 0, 2720), origin="upper", vmin=0, vmax=255)
+    axins.imshow(ori_rgb,extent=(0, 3840, 0, 2720), origin="upper", vmin=0, vmax=255)
     axins.set_xlim(x1, x2)
     axins.set_ylim(y1, y2)
     axins.spines['top'].set_color('red')
@@ -67,12 +72,13 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
     ax1.indicate_inset_zoom(axins, edgecolor="red")
     ax1.tick_params(axis='both', which='both', bottom=False, left = False, labelbottom=False,labelleft=False)
 
-    ax2.imshow(aed, extent=extent, origin="upper", vmin=0, vmax=255)
-    ax2.set_title('Auto-encoded')
+    aed_rgb = cv2.cvtColor(aed.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
+    ax2.imshow(aed_rgb, extent=extent, origin="upper", vmin=0, vmax=255)
+    ax2.set_title('Auto-encoded', fontsize =16)
     ax2.tick_params(axis='both', which='both', bottom=False, left = False, labelbottom=False,labelleft=False)
 
     axins = ax2.inset_axes([lower[0], lower[1], xdim, ydim])
-    axins.imshow(aed, extent=extent, origin="upper", vmin=0, vmax=255)
+    axins.imshow(aed_rgb, extent=extent, origin="upper", vmin=0, vmax=255)
     x1, x2, y1, y2 = boxX[0], boxX[1], boxY[0], boxY[1]
     axins.set_xlim(x1, x2)
     axins.set_ylim(y1, y2)
@@ -85,7 +91,7 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
     ax2.indicate_inset_zoom(axins, edgecolor="red")
 
     ax3.imshow(np.sqrt((aed-original)**2), extent=extent, origin="upper")
-    ax3.set_title('Difference')
+    ax3.set_title('Difference', fontsize =16)
     ax3.tick_params(axis='both', which='both', bottom=False, left = False, labelbottom=False,labelleft=False)
 
     axins = ax3.inset_axes([lower[0], lower[1], xdim, ydim])
@@ -159,7 +165,7 @@ def plot_aed(plotting_dataset, name):
         img = img[0].numpy().reshape(1, 2736, 3840, 1)[:, :2720, :, :]
         encoded_img = ae.encode(img)
         decoded_img = ae.decode(encoded_img)
-        plot_ae(img.reshape(2720, 3840), decoded_img.numpy().reshape(2720, 3840), name)
+        plot_ae(img.reshape(2720, 3840), decoded_img.numpy().reshape(2720, 3840), p)
         p = p+1
 
 def classifier_scores(test_loss, train_loss):
@@ -174,19 +180,19 @@ def classifier_scores(test_loss, train_loss):
 mnbr = 'testing_all_data'
 test_loss = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/losses/%s/test_loss_%s.npy' % (mnbr,mnbr))
 train_loss = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/losses/%s/train_loss_%s.npy' % (mnbr,mnbr))
-classifier_scores(test_loss, train_loss)
-comparison_plot(checkpoints_loc, list_of_models)
+#classifier_scores(test_loss, train_loss)
+#comparison_plot(checkpoints_loc, list_of_models)
 
-#plotting_dataset = def_dataset.shuffle(100, seed = 1).take(5)
-#plot_aed(plotting_dataset)
+plotting_dataset = def_dataset.shuffle(100, seed = 1).take(5)
+#plot_aed(plotting_dataset, 1)
 
 boxX = [(3000,3500)]
 boxY = [(0,300)]
 lower = [(0.55,0.3)]
 times = 5
-plotting_dataset = def_dataset.shuffle(100, seed = 2).take(5)
+#plotting_dataset = def_dataset.shuffle(100, seed = 2).take(5)
 plotting_dataset = plotting_dataset.take(1)
-#plot_aed_zoom(plotting_dataset, boxX, boxY, lower, times)
+plot_aed_zoom(plotting_dataset, boxX, boxY, lower, times)
 #plotting_dataset = plotting_dataset.skip(4)
 boxX = [(1500,1800)]
 boxY = [(200,500)]

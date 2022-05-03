@@ -6,6 +6,7 @@ from sklearn.metrics import confusion_matrix
 from helpers.dataset_helpers import create_cnn_dataset
 from autoencoders import *
 from common import *
+from sklearn.metrics import confusion_matrix, log_loss
 from scipy.ndimage.interpolation import rotate
 import random, argparse
 import matplotlib.pyplot as plt
@@ -25,8 +26,8 @@ images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 MTN = 1
 train_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_noaug_%i.npy' % MTN)
 train_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_noaug_%i.npy' % MTN)
-test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'test_img_list_%i.npy' % MTN)
-test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'test_lbl_list_%i.npy' % MTN)
+test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_img_list_%i.npy' % MTN)
+test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_lbl_list_%i.npy' % MTN)
 
 train_means = []
 for x in train_img_list:
@@ -92,8 +93,10 @@ def rounding_thresh(input, thresh):
     rounded = np.round(input - thresh + 0.5)
     return rounded
 
-pred = rounding_thresh(np.array(test_means), 0.54)
+pred = rounding_thresh(np.array(test_means), 0.53)
+bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 
+print('LOGLOSS: ', bce(true, pred.astype("float64")))
 tn, fp, fn, tp = confusion_matrix(true, pred, labels=[0,1]).ravel()
 
 cm= confusion_matrix(true, pred, labels=[0,1])
@@ -102,12 +105,8 @@ print('Test tn, fp, fn, tp:  ', tn, fp, fn, tp)
 print('FPR: ', fp/(fp+tn))
 print('FNR: ', fn/(fn+tp))
 
-def plot_roc_curve(fpr, tpr, auc):
-    itpr = []
-    for i in tpr:
-        itpr.append(1-i)
-    plt.plot(fpr, tpr, label = 'AUC = '+str(round(auc, 2)))
-    #plt.axis([0, 1, 0, 1])
+def plot_roc_curve2(fpr1, tpr1, auc1, ):
+    plt.plot(fpr1, tpr1, color = 'C0', label = 'AE baseline AUC = '+str(round(auc1, 2)))
     plt.plot(np.arange(0,1.1,0.1), np.arange(0,1.1,0.1), linestyle = '--', color = 'gray')
     plt.xlabel('False Positive Rate/(1-Specificity)', fontsize = 12)
     plt.ylabel('True Positive Rate/Sensitivity', fontsize = 12)
@@ -119,8 +118,9 @@ def plot_roc_curve(fpr, tpr, auc):
 from sklearn.metrics import roc_curve
 from sklearn import metrics
 
-fpr , tpr , thresholds = roc_curve(true, test_means)
-auc = metrics.auc(fpr, tpr)
+fpr1 , tpr1 , thresholds = roc_curve(true, test_means)
+
+auc1 = metrics.auc(fpr1, tpr1)
 plt.figure(2)
-plot_roc_curve(fpr, tpr, auc)
-print('AUC: ', auc)
+plot_roc_curve2(fpr1, tpr1, auc1)
+print('AUC: ', auc1)
