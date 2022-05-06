@@ -66,7 +66,7 @@ with open('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/'+savemode
 test_losses = x['test_losses']
 min_steps_test = x['min_steps_test']
 plt.plot(np.arange(1,len(test_losses)+1,1), test_losses)
-plt.ylabel('Test loss (L2)')
+plt.ylabel('L loss (L2)')
 plt.xlabel('Epoch')
 plt.grid(zorder = -3)
 plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/plots/'+savemodel+'/test_loss.png')

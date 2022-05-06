@@ -5,8 +5,9 @@ from tqdm import tqdm
 from sklearn.metrics import confusion_matrix, log_loss
 from autoencoders import *
 import random, argparse
-import matplotlib.pyplot as plt
 random.seed(42)
+
+tf.keras.backend.clear_session()
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_ID", type=str, help="Model ID",
@@ -65,6 +66,10 @@ else:
         model = model_works_newdatasplit
     if model_ID == 'model_works_newdatasplit2':
         model = model_works_newdatasplit2
+    if model_ID == 'model_works_newdatasplit3':
+        model = model_works_newdatasplit3
+    if model_ID == 'model_works_newdatasplit4':
+        model = model_works_newdatasplit4
 
 print(model.summary())
 
@@ -72,7 +77,7 @@ optimizer = tf.keras.optimizers.Adam(lr)
 model.compile(optimizer = optimizer, loss = 'binary_crossentropy', metrics = ['binary_crossentropy'])
 
 #how many normal images for each defective
-MTN = 4
+MTN = 10
 if is_ae == 1:
     print('No AE')
     train_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_noae_%i.npy' % MTN)
@@ -101,14 +106,25 @@ for epoch in range(cont_epoch, epochs):
     train_scores_epoch = []
     b = 0
     train_img_list, train_lbl_list = shuffle(train_img_list, train_lbl_list)
-    train_img_list_cut = train_img_list[:-30]
-    train_lbl_list_cut = train_lbl_list[:-30]
+    train_img_list_cut = train_img_list[:-66]
+    train_lbl_list_cut = train_lbl_list[:-66]
     #MTN1 -12 and 50
-    train_img_batches =  np.split(train_img_list_cut, 125, axis=0)
-    train_lbl_batches = np.split(train_lbl_list_cut, 125, axis=0)
+    train_img_batches =  np.split(train_img_list_cut, 275, axis=0)
+    train_lbl_batches = np.split(train_lbl_list_cut, 275, axis=0)
     print(np.array(train_img_batches).shape)
     for x_batch, y_batch in tqdm(zip(train_img_batches, train_lbl_batches), total=len(train_lbl_batches)):
         model.fit(x_batch, y_batch, verbose = 0)
+        #if b < 6:
+        #    plt.imshow(x_batch[0])
+        #    plt.title(y_batch[0])
+        #    plt.show()
+        #    plt.imshow(x_batch[1])
+        #    plt.title(y_batch[1])
+        #    plt.show()
+        #    plt.imshow(x_batch[2])
+        #    plt.title(y_batch[2])
+        #    plt.show()
+        #b = b+1
         train_loss_batch = log_loss(y_batch, model.predict(x_batch).astype("float64"))
         train_scores_epoch.append(train_loss_batch)
         training_scores.append(train_loss_batch)

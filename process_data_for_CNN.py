@@ -93,7 +93,7 @@ test_def_dataset = create_cnn_dataset(X_test_det_list[:N_det_test], Y_test_det_l
 val_def_dataset = create_cnn_dataset(X_test_det_list[-N_det_test:], Y_test_det_list[-N_det_test:], _shuffle=False)
 
 #how many normal images for each defective
-MTN = 4
+MTN = 10
 
 def process_train_data(dataset, MTN, seed):
     random.seed(seed)

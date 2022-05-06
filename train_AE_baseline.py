@@ -12,7 +12,7 @@ import random, argparse
 import matplotlib.pyplot as plt
 random.seed(42)
 
-gpu = "3"
+gpu = "2"
 
 os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
@@ -26,8 +26,8 @@ images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 MTN = 1
 train_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_noaug_%i.npy' % MTN)
 train_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_noaug_%i.npy' % MTN)
-test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_img_list_%i.npy' % MTN)
-test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_lbl_list_%i.npy' % MTN)
+test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'test_img_list_%i.npy' % MTN)
+test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'test_lbl_list_%i.npy' % MTN)
 
 train_means = []
 for x in train_img_list:
@@ -57,15 +57,16 @@ for x, y in zip(train_means, train_lbl_list):
         anomalous.append(x)
 
 th = 0.54
-plt.figure(1)
 plt.hist(anomalous,  bins = int(np.sqrt(len(anomalous))), density = True, alpha = 0.5, color = 'red', label='Anomalous', zorder = 3)
 plt.hist(normal, bins = int(np.sqrt(len(normal))),  density = True, alpha = 0.5,color = 'green', label = 'Non-anomalous',zorder = 3)
 plt.grid(zorder = 1)
-plt.xlabel('Mean pixel-wise reconstruction error', fontsize = 12)
+plt.xlabel('Mean pixel-wise reconstruction error', fontsize = 14)
 #plt.plot([th, th,th,th], [0.0,0.05,0.2,0.45], linestyle = '--', color = 'black', label='Threshold = 27.1')
-plt.plot([th, th,th,th], [0.0,4,6,8.6], linestyle = '--', color = 'black', label='Threshold = 0.54')
+plt.plot([th, th,th,th], [0.0,4,6,8.6], linestyle = '--', color = 'black', label='Threshold = 0.54', zorder = 5)
 plt.ylim(0,8.5)
-plt.legend(loc = 'upper left', fontsize = 12)
+plt.tick_params(axis='both', which='major', labelsize=14)
+plt.legend(loc = 'upper left', fontsize = 14)
+plt.tight_layout()
 plt.show()
 
 threshold = 27.1
@@ -93,7 +94,7 @@ def rounding_thresh(input, thresh):
     rounded = np.round(input - thresh + 0.5)
     return rounded
 
-pred = rounding_thresh(np.array(test_means), 0.53)
+pred = rounding_thresh(np.array(test_means), 0.54)
 bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 
 print('LOGLOSS: ', bce(true, pred.astype("float64")))
@@ -106,13 +107,16 @@ print('FPR: ', fp/(fp+tn))
 print('FNR: ', fn/(fn+tp))
 
 def plot_roc_curve2(fpr1, tpr1, auc1, ):
+    plt.figure(2)
     plt.plot(fpr1, tpr1, color = 'C0', label = 'AE baseline AUC = '+str(round(auc1, 2)))
     plt.plot(np.arange(0,1.1,0.1), np.arange(0,1.1,0.1), linestyle = '--', color = 'gray')
-    plt.xlabel('False Positive Rate/(1-Specificity)', fontsize = 12)
-    plt.ylabel('True Positive Rate/Sensitivity', fontsize = 12)
+    plt.xlabel('False Positive Rate', fontsize = 14)
+    plt.ylabel('True Positive Rate', fontsize = 14)
     #plt.xscale('log')
     plt.grid()
-    plt.legend(loc = 'lower right', fontsize = 12)
+    plt.legend(loc = 'lower right', fontsize = 14)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.tight_layout()
     plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/baseline.png', dpi=600)
     plt.show()
 from sklearn.metrics import roc_curve

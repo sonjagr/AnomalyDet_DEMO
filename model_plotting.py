@@ -13,7 +13,7 @@ from autoencoders2 import *
 from common import *
 import matplotlib.pyplot as plt
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 ae = AutoEncoder()
 
 def visualize_model(model):
@@ -26,7 +26,7 @@ def plot_ae(original, aed, i):
     f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 4))
     ori_rgb = cv2.cvtColor(original.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
 
-    ax1.imshow(ori_rgb, vmin=0, vmax=255)
+    ax1.imshow(original, vmin=0, vmax=255)
     #for i in i_a:
     #    box = box_index_to_coords(i)
     #    rec = matplotlib.patches.Rectangle((int(box[0]), int(box[1])), 160, 160, linewidth=1, edgecolor='r', facecolor='none')
@@ -35,11 +35,12 @@ def plot_ae(original, aed, i):
     ax1.tick_params(axis='both', which='both', bottom=False,left = False,labelbottom=False,labelleft=False)
 
     aed_rgb = cv2.cvtColor(aed.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
-    ax2.imshow(aed_rgb, vmin=0, vmax=255)
-    ax2.set_title('Autoencoded', fontsize =16)
+    ax2.imshow(aed, vmin=0, vmax=255)
+    ax2.set_title('Auto-encoded', fontsize =16)
     ax2.tick_params(axis='both', which='both', bottom=False, left = False, labelbottom=False,labelleft=False)
 
-    ax3.imshow(np.sqrt((aed-original)**2))
+    cmap = 'viridis'
+    ax3.imshow(np.sqrt((aed-original)**2), cmap = cmap)
     ax3.set_title('Difference', fontsize =16)
     ax3.tick_params(axis='both', which='both', bottom=False,left = False,labelbottom=False,labelleft=False)
 
@@ -52,7 +53,7 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
     f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 4))
     extent = (0, 3840, 0, 2720)
     ori_rgb = cv2.cvtColor(original.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
-    ax1.imshow(ori_rgb, extent=extent, origin="upper", vmin=0, vmax=255)
+    ax1.imshow(original, extent=extent, origin="upper", vmin=0, vmax=255)
     ax1.set_title('Original', fontsize =16)
 
     x1, x2, y1, y2 = boxX[0], boxX[1], boxY[0], boxY[1]
@@ -60,7 +61,7 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
     ydim = (2720/(y2-y1)*times)/100
     print('xdimm', xdim)
     axins = ax1.inset_axes([lower[0], lower[1], xdim, ydim])
-    axins.imshow(ori_rgb,extent=(0, 3840, 0, 2720), origin="upper", vmin=0, vmax=255)
+    axins.imshow(original,extent=(0, 3840, 0, 2720), origin="upper", vmin=0, vmax=255)
     axins.set_xlim(x1, x2)
     axins.set_ylim(y1, y2)
     axins.spines['top'].set_color('red')
@@ -73,12 +74,12 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
     ax1.tick_params(axis='both', which='both', bottom=False, left = False, labelbottom=False,labelleft=False)
 
     aed_rgb = cv2.cvtColor(aed.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
-    ax2.imshow(aed_rgb, extent=extent, origin="upper", vmin=0, vmax=255)
+    ax2.imshow(aed, extent=extent, origin="upper", vmin=0, vmax=255)
     ax2.set_title('Auto-encoded', fontsize =16)
     ax2.tick_params(axis='both', which='both', bottom=False, left = False, labelbottom=False,labelleft=False)
 
     axins = ax2.inset_axes([lower[0], lower[1], xdim, ydim])
-    axins.imshow(aed_rgb, extent=extent, origin="upper", vmin=0, vmax=255)
+    axins.imshow(aed, extent=extent, origin="upper", vmin=0, vmax=255)
     x1, x2, y1, y2 = boxX[0], boxX[1], boxY[0], boxY[1]
     axins.set_xlim(x1, x2)
     axins.set_ylim(y1, y2)
@@ -90,12 +91,13 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
     axins.set_yticks([])
     ax2.indicate_inset_zoom(axins, edgecolor="red")
 
-    ax3.imshow(np.sqrt((aed-original)**2), extent=extent, origin="upper")
+    cmap = 'viridis'
+    ax3.imshow(np.sqrt((aed-original)**2),cmap = cmap, extent=extent, origin="upper")
     ax3.set_title('Difference', fontsize =16)
     ax3.tick_params(axis='both', which='both', bottom=False, left = False, labelbottom=False,labelleft=False)
 
     axins = ax3.inset_axes([lower[0], lower[1], xdim, ydim])
-    axins.imshow(np.sqrt((aed-original)**2), extent=extent, origin="upper")
+    axins.imshow(np.sqrt((aed-original)**2), extent=extent, cmap = cmap, origin="upper")
     x1, x2, y1, y2 = boxX[0], boxX[1], boxY[0], boxY[1]
     axins.set_xlim(x1, x2)
     axins.set_ylim(y1, y2)
@@ -113,6 +115,7 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
 
 def comparison_plot(checkpoint_loc, list_of_models, colors=['r', 'b' ,'g', 'orange']):
     list_of_labels = ['TQ3','TQ3_DO_smaller_lr','TQ3_DO','SG3']
+    plt.figure(1, figsize=(8, 5))
     for i in range(0, len(list_of_models)):
         with open(checkpoint_loc +'/'+ str(list_of_models[i] + '/cost.pkl'), 'rb') as f:
             x = pickle.load(f)
@@ -122,11 +125,12 @@ def comparison_plot(checkpoint_loc, list_of_models, colors=['r', 'b' ,'g', 'oran
         print(len(train_losses))
         min_steps_test = x['min_steps_test']
         #plt.plot(np.arange(1, len(test_losses) + 1, 1/8000), train_losses, c='y', label = 'Train', linestyle='--')
-        plt.plot(np.arange(1, len(test_losses) + 1, 1), test_losses, c='r', label='Validation loss')
+        plt.plot(np.arange(1, len(test_losses) + 1, 1), test_losses, color = 'C1', label='Validation')
     plt.ylabel('L2 loss', fontsize = 14)
     plt.xlabel('Epoch', fontsize = 14)
-    plt.title('Validation loss during training', fontsize = 16)
+    #plt.title('Validation loss during training', fontsize = 16)
     plt.grid(zorder=-3)
+    plt.tick_params(axis='both', which='major', labelsize=14)
     plt.legend( fontsize = 14)
     plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/plots/' + 'final_ae' + '_val_loss.png', dpi = 600)
     plt.show()
