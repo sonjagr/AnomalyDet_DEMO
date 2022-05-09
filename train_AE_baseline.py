@@ -57,8 +57,8 @@ for x, y in zip(train_means, train_lbl_list):
         anomalous.append(x)
 
 th = 0.54
-plt.hist(anomalous,  bins = int(np.sqrt(len(anomalous))), density = True, alpha = 0.5, color = 'red', label='Anomalous', zorder = 3)
-plt.hist(normal, bins = int(np.sqrt(len(normal))),  density = True, alpha = 0.5,color = 'green', label = 'Non-anomalous',zorder = 3)
+plt.hist(anomalous,  bins = int(np.sqrt(len(anomalous))), density = True, alpha = 0.6, color = 'C1', label='Anomalous', zorder = 3)
+plt.hist(normal, bins = int(np.sqrt(len(normal))),  density = True, alpha = 0.6,color = 'C0', label = 'Non-anomalous',zorder = 3)
 plt.grid(zorder = 1)
 plt.xlabel('Mean pixel-wise reconstruction error', fontsize = 14)
 #plt.plot([th, th,th,th], [0.0,0.05,0.2,0.45], linestyle = '--', color = 'black', label='Threshold = 27.1')

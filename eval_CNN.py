@@ -17,6 +17,7 @@ def plot_roc_curve(fpr1, tpr1, auc1, fpr2, tpr2, auc2):
     plt.plot(np.arange(0,1.1,0.1), np.arange(0,1.1,0.1), linestyle = '--', color = 'gray')
     plt.xlabel('False Positive Rate', fontsize = 14)
     plt.ylabel('True Positive Rate', fontsize = 14)
+    plt.scatter(0.1, 0.99, s=160, c='red', marker="*", label = 'Goal for whole images', zorder = 5)
     plt.tick_params(axis='both', which='major', labelsize=14)
     plt.grid()
     plt.legend(loc = 'lower right', fontsize = 14)
@@ -26,20 +27,21 @@ def plot_roc_curve(fpr1, tpr1, auc1, fpr2, tpr2, auc2):
 def plot_examples(test_pred_plot, test_true_plot, test_img_plot, saveas):
     test_pred_plot = np.round(test_pred_plot, 2)
     f, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(12, 8))
-    ax1.imshow(test_img_plot[0])
-    ax1.set_title('Label: '+str(round(test_true_plot[0]))+'\nPrediction: '+str(test_pred_plot[0]), fontsize =12)
+    cmap = 'rainbow'
+    ax1.imshow(test_img_plot[0], cmap = cmap)
+    ax1.set_title('Label: '+str(round(test_true_plot[0]))+'\nPrediction: '+str(test_pred_plot[0]), fontsize =16)
     ax1.tick_params(axis='both', which='both', bottom=False,left = False,labelbottom=False,labelleft=False)
 
-    ax2.imshow(test_img_plot[1])
-    ax2.set_title('Label: '+str(round(test_true_plot[1]))+'\nPrediction: '+str(test_pred_plot[1]), fontsize =12)
+    ax2.imshow(test_img_plot[1], cmap = cmap)
+    ax2.set_title('Label: '+str(round(test_true_plot[1]))+'\nPrediction: '+str(test_pred_plot[1]), fontsize =16)
     ax2.tick_params(axis='both', which='both', bottom=False,left = False,labelbottom=False,labelleft=False)
 
-    ax3.imshow(test_img_plot[2])
-    ax3.set_title('Label: '+str(round(test_true_plot[2]))+'\nPrediction: '+str(test_pred_plot[2]), fontsize =12)
+    ax3.imshow(test_img_plot[2], cmap = cmap)
+    ax3.set_title('Label: '+str(round(test_true_plot[2]))+'\nPrediction: '+str(test_pred_plot[2]), fontsize =16)
     ax3.tick_params(axis='both', which='both', bottom=False,left = False,labelbottom=False,labelleft=False)
 
-    ax4.imshow(test_img_plot[3])
-    ax4.set_title('Label: '+str(round(test_true_plot[3]))+'\nPrediction: '+str(test_pred_plot[3]), fontsize =12)
+    ax4.imshow(test_img_plot[3], cmap = cmap)
+    ax4.set_title('Label: '+str(round(test_true_plot[3]))+'\nPrediction: '+str(test_pred_plot[3]), fontsize =16)
     ax4.tick_params(axis='both', which='both', bottom=False,left = False,labelbottom=False,labelleft=False)
 
     plt.tight_layout()
@@ -147,6 +149,11 @@ print('AUC: ', auc)
 test_pred_plot = test_pred[1:5]
 test_true_plot = test_lbl_list[1:5]
 test_img_plot = test_img_list[1:5, :, :]
+plot_examples(test_pred_plot, test_true_plot, test_img_plot, '0')
+
+test_pred_plot = test_pred[10:14]
+test_true_plot = test_lbl_list[10:14]
+test_img_plot = test_img_list[10:14, :, :]
 plot_examples(test_pred_plot, test_true_plot, test_img_plot, '0')
 
 tn, fp, fn, tp = confusion_matrix(test_lbl_list, rounding_thresh(test_pred, 0.5)).ravel()
