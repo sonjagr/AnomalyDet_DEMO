@@ -189,13 +189,13 @@ train_loss = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/losses/%s/t
 #classifier_scores(test_loss, train_loss)
 #comparison_plot(checkpoints_loc, list_of_models)
 
-plotting_dataset = def_dataset.shuffle(100, seed = 1).take(3)
+plotting_dataset = def_dataset.shuffle(100, seed = 1).take(2)
 #plot_aed(plotting_dataset, 1)
 
-boxX = [(3000,3500),(3000,3500),(3000,3500)]
-boxY = [(0,300),(0,300),(0,300)]
-lower = [(0.55,0.3),(0.55,0.3),(0.55,0.3)]
-times = 5
+boxX = [(3000,3500),(500,1000),(1000,1500)]
+boxY = [(0,300),(0,400),(0,400)]
+lower = [(0.55,0.3),(0.3,0.3),(0.55,0.3)]
+times = 7
 plot_aed_zoom(plotting_dataset, boxX, boxY, lower, times)
 
 boxX = [(3000,3500)]
