@@ -9,15 +9,15 @@ from sklearn import metrics
 random.seed(42)
 from sklearn.metrics import confusion_matrix, log_loss
 tf.keras.backend.clear_session()
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 def plot_roc_curve(fpr1, tpr1, auc1, fpr2, tpr2, auc2):
-    plt.plot(fpr1, tpr1, color = 'C1', label = 'CNN AUC = '+str(round(auc1, 2)))
-    plt.plot(fpr2, tpr2, color = 'C0', label = 'AE baseline AUC = '+str(round(auc2, 2)))
+    plt.plot(fpr1, tpr1, color = 'C1', label = 'CNN, AUC = '+str(round(auc1, 2)))
+    plt.plot(fpr2, tpr2, color = 'C0', label = 'AE baseline, AUC = '+str(round(auc2, 2)))
     plt.plot(np.arange(0,1.1,0.1), np.arange(0,1.1,0.1), linestyle = '--', color = 'gray')
     plt.xlabel('False Positive Rate', fontsize = 14)
     plt.ylabel('True Positive Rate', fontsize = 14)
-    plt.scatter(0.1, 0.99, s=160, c='red', marker="*", label = 'Goal for whole images', zorder = 5)
+    plt.scatter(0.1, 0.99, s=160, c='red', marker="*", label = 'Goal for ' +  r'$\bf{whole}$' + ' images', zorder = 5)
     plt.tick_params(axis='both', which='major', labelsize=14)
     plt.grid()
     plt.legend(loc = 'lower right', fontsize = 14)
