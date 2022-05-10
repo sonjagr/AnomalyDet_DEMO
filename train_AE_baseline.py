@@ -108,7 +108,7 @@ print('FNR: ', fn/(fn+tp))
 
 def plot_roc_curve2(fpr1, tpr1, auc1, ):
     plt.figure(2)
-    plt.plot(fpr1, tpr1, color = 'C0', label = 'AE baseline AUC = '+str(round(auc1, 2)))
+    plt.plot(fpr1, tpr1, color = 'C0', label = 'AE baseline, AUC = '+str(round(auc1, 2)))
     plt.plot(np.arange(0,1.1,0.1), np.arange(0,1.1,0.1), linestyle = '--', color = 'gray')
     plt.xlabel('False Positive Rate', fontsize = 14)
     plt.ylabel('True Positive Rate', fontsize = 14)
