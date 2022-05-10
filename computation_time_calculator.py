@@ -1,10 +1,18 @@
 import numpy as np
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-from scipy.ndimage.interpolation import rotate
-import random
-from autoencoders import *
+import tensorflow as tf
+import pickle, argparse, random
+from pathlib import Path
+import tensorflow as tf
+from tensorflow import keras
+from sklearn.model_selection import train_test_split
+from helpers.dataset_helpers import create_dataset
+from autoencoders2 import *
+from common import *
 from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+ae = AutoEncoder()
 import matplotlib.pyplot as plt
 import time
 random.seed(42)
@@ -18,7 +26,6 @@ dir_det = 'DET/'
 computer = 'gpu'
 
 if computer == 'gpu':
-    os.environ["CUDA_VISIBLE_DEVICES"] = "3"
     ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
     model = tf.keras.models.load_model(
         '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_class/%s/cnn_%s_epoch_%i' % (
@@ -48,7 +55,7 @@ def split(img):
     split_time = t2 - t1
     return split_img, split_time
 
-images = 40
+images = 32
 
 X_test_det_list = np.load(base_dir + dir_det + 'X_test_DET.npy', allow_pickle=True)[:images]
 X_test_det_list = [images_dir_loc + s for s in X_test_det_list]
