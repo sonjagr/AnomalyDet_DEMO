@@ -47,7 +47,7 @@ def plot_ae(original, aed, i):
     ax3.tick_params(axis='both', which='both', bottom=False,left = False,labelbottom=False,labelleft=False)
 
     plt.tight_layout()
-    plt.savefig('aed_imgs/aed_example_nopatch_%i.png' % i,dpi=600)
+    #plt.savefig('aed_imgs/aed_example_nopatch_%i.png' % i,dpi=600)
     plt.show()
 
 def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
@@ -94,6 +94,7 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
     ax2.indicate_inset_zoom(axins, edgecolor="red")
 
     cmap = 'rainbow'
+    diff = np.sqrt((aed-original)**2)
     ax3.imshow(np.sqrt((aed-original)**2),cmap = cmap, extent=extent, origin="upper")
     ax3.set_title('Difference', fontsize =16)
     ax3.tick_params(axis='both', which='both', bottom=False, left = False, labelbottom=False,labelleft=False)
@@ -112,7 +113,7 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
     ax3.indicate_inset_zoom(axins, edgecolor="red")
     plt.tight_layout()
     i = 2
-    plt.savefig('aed_imgs/aed_example_nopatch_zoom_%i.png' % i,dpi=600)
+    #plt.savefig('aed_imgs/aed_example_nopatch_zoom_%i.png' % i,dpi=600)
     plt.show()
 
 def comparison_plot(checkpoint_loc, list_of_models, colors=['r', 'b' ,'g', 'orange']):
@@ -151,7 +152,7 @@ def_dataset = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=Fa
 
 
 def plot_aed_zoom(plotting_dataset, boxX, boxY, lower, times):
-    ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
+    ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1/model_AE_TQ3_5_to_5_epochs')
     p=0
     for x_plot, y_plot in plotting_dataset:
         img = x_plot
@@ -192,9 +193,9 @@ train_loss = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/losses/%s/t
 plotting_dataset = def_dataset.shuffle(100, seed = 1).take(2)
 #plot_aed(plotting_dataset, 1)
 
-boxX = [(3000,3500),(500,1000),(1000,1500)]
+boxX = [(3000,3600),(500,1100),(1000,1500)]
 boxY = [(0,300),(0,400),(0,400)]
-lower = [(0.55,0.3),(0.3,0.3),(0.55,0.3)]
+lower = [(0.55,0.3),(0.3,0.2),(0.55,0.3)]
 times = 7
 plot_aed_zoom(plotting_dataset, boxX, boxY, lower, times)
 
