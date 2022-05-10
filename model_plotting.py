@@ -13,7 +13,7 @@ from autoencoders2 import *
 from common import *
 import matplotlib.pyplot as plt
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 ae = AutoEncoder()
 
 def visualize_model(model):
@@ -95,7 +95,7 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
 
     cmap = 'rainbow'
     diff = np.sqrt((aed-original)**2)
-    ax3.imshow(np.sqrt((aed-original)**2),cmap = cmap, extent=extent, origin="upper")
+    ax3.imshow(np.sqrt((aed-original)**2),cmap = cmap, vmin = -10, vmax =100, extent=extent, origin="upper")
     ax3.set_title('Difference', fontsize =16)
     ax3.tick_params(axis='both', which='both', bottom=False, left = False, labelbottom=False,labelleft=False)
 
