@@ -4,72 +4,85 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from tqdm import tqdm
 import cv2
 from helpers.dataset_helpers import create_cnn_dataset
-from autoencoders import *
-from common import *
+from old_codes.autoencoders import *
 from scipy.ndimage.interpolation import rotate
 import random
-import matplotlib.pyplot as plt
+print(tf.__version__) ##2.2
 random.seed(42)
 
-os.environ["CUDA_VISIBLE_DEVICES"] = '3'
+os.environ["CUDA_VISIBLE_DEVICES"] = '2'
 
+## function to add rotation to images
 def rotate_img(img):
     img = img.reshape(160,160)
     rot_angle = random.choice([90, 180, 270])
     rot = rotate(img, rot_angle)
     return rot.flatten()
 
-def change_bright_img(img):
-    img = img.reshape(160, 160)
-    value = random.choice(np.arange(-51,51,1))  # whatever value you want to add
-    cv2.add(img[:, :, 2], value, img[:, :, 2])
-    return image.flatten()
+## convert rgb to bayer format
+def rgb2bayer(rgb):
+    (h,w) = rgb.shape[0], rgb.shape[1]
+    (r,g,b) = cv2.split(rgb)
+    bayer = np.empty((h,w), np.uint8)
+    bayer[0::2, 0::2] = r[0::2, 0::2]
+    bayer[0::2, 1::2] = g[0::2, 1::2]
+    bayer[1::2, 0::2] = g[1::2, 0::2]
+    bayer[1::2, 1::2] = b[1::2, 1::2]
+    return bayer
 
-ae = AutoEncoder()
-print('Loading autoencoder...')
-ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
+## convert bayer to rgb
+def bayer2rgb(bayer):
+    return cv2.cvtColor(bayer.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
 
-def encode_split(ae, img):
+## change the brightness of whole images
+def change_brightness(img, value):
+    value = value.astype('uint8')
+    rgb = bayer2rgb(img.reshape(2736, 3840))
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+
+    h, s, v = cv2.split(hsv)
+    lim = 255 - value
+    v[v > lim] = 255
+    v[v <= lim] += value
+
+    final_hsv = cv2.merge((h, s, v))
+    final_rgb = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2RGB)
+    final_bayer = rgb2bayer(final_rgb)
+    return final_bayer.reshape(-1, 2736, 3840, 1)
+
+## change the brightness of patches
+def change_brightness_patch(img):
+    value = random.choice(np.arange(-51,51,1)).astype('uint8')
+    rgb = bayer2rgb(img.reshape(160, 160))
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+
+    h, s, v = cv2.split(hsv)
+    lim = 255 - value
+    v[v > lim] = 255
+    v[v <= lim] += value
+
+    final_hsv = cv2.merge((h, s, v))
+    final_rgb = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2RGB)
+    final_bayer = rgb2bayer(final_rgb)
+    return final_bayer.reshape(160, 160).flatten()
+
+## function to calculate autoencoder reconstruction error as absolute error
+def encode(ae, img):
     img = img[0].numpy().reshape(1, 2736, 3840, 1)[:, :2720, :, :]
     encoded_img = ae.encode(img)
     decoded_img = ae.decode(encoded_img).numpy()
     aed_img = np.sqrt(np.power(np.subtract(img, decoded_img),2))
-    split_img = tf.image.extract_patches(images=aed_img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1],rates=[1, 1, 1, 1], padding='VALID')
-    split_img = split_img.numpy().reshape(17 * 24, 160 * 160)
+    return aed_img
 
-    return split_img
-
-def encode_bright_split(ae, img):
-    img = img[0].numpy().reshape(1, 2736, 3840, 1)[:, :2720, :, :]
-
-    value = random.choice(np.arange(0.75, 1.25, 0.01))
-    img = np.multiply(img, value)
-
-    encoded_img = ae.encode(img)
-    decoded_img = ae.decode(encoded_img).numpy()
-    aed_img = np.sqrt(np.power(np.subtract(img, decoded_img),2))
-
-    split_img = tf.image.extract_patches(images=aed_img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1],rates=[1, 1, 1, 1], padding='VALID')
-    split_img = split_img.numpy().reshape(17 * 24, 160 * 160)
-    return split_img
-
-def only_bright_split(img):
-    img = img[0].numpy().reshape(1, 2736, 3840, 1)[:, :2720, :, :]
-
-    value = random.choice(np.arange(0.75, 1.25, 0.01))
-
-    img = np.multiply(img, value)
-
-    split_img = tf.image.extract_patches(images=img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1],rates=[1, 1, 1, 1], padding='VALID')
-    split_img = split_img.numpy().reshape(17 * 24, 160 * 160)
-    return split_img
-
-
-def only_split(img):
+def split(img):
     img = img[0].numpy().reshape(1, 2736, 3840, 1)[:, :2720, :, :]
     img = tf.convert_to_tensor(img, np.float32)
     split_img = tf.image.extract_patches(images=img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1],rates=[1, 1, 1, 1], padding='VALID')
     return split_img.numpy().reshape(17 * 24, 160 * 160)
+
+ae = AutoEncoder()
+print('Loading autoencoder...')
+ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
 
 base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
 dir_det = 'DET/'
@@ -84,6 +97,9 @@ X_test_det_list = [images_dir_loc + s for s in X_test_det_list]
 Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET.npy', allow_pickle=True).tolist()
 Y_test_det_list = np.load(base_dir + dir_det + 'Y_test_DET.npy', allow_pickle=True).tolist()
 
+X_train_det_list = X_train_det_list[:300]
+X_test_det_list = X_test_det_list[:100]
+
 N_det_test = int(len(X_test_det_list)/2)
 N_det_train = len(X_train_det_list)
 print('N train, N test : ', N_det_train, N_det_test)
@@ -93,7 +109,7 @@ test_def_dataset = create_cnn_dataset(X_test_det_list[:N_det_test], Y_test_det_l
 val_def_dataset = create_cnn_dataset(X_test_det_list[-N_det_test:], Y_test_det_list[-N_det_test:], _shuffle=False)
 
 #how many normal images for each defective
-MTN = 10
+MTN = 4
 
 def process_train_data(dataset, MTN, seed):
     random.seed(seed)
@@ -105,14 +121,17 @@ def process_train_data(dataset, MTN, seed):
         Y = Y.numpy().reshape(17*24)
         i_a = np.where(Y == 1)[0]
         i_n = np.where(Y == 0)[0]
-        split_img = encode_split(ae, X)
+        encoded_img = encode(ae, X)
+        split_img = split(encoded_img)
         defects = defects + len(i_a)
         if len(i_a) > 0:
             def_imgs = split_img[i_a, :]
             rotated = np.array([rotate_img(item) for item in def_imgs])
             def_imgs = np.append(def_imgs, rotated, axis=0)
-            n_normal = def_imgs.shape[0]
-            i_n = np.random.choice(a=i_n, size=n_normal * MTN, replace=False)
+            brightness = np.array([change_brightness_patch(item) for item in def_imgs])
+            def_imgs = np.append(def_imgs, brightness, axis=0)
+            #n_normal = def_imgs.shape[0]
+            #i_n = np.random.choice(a=i_n, size=n_normal * MTN, replace=False)
             norm_imgs = split_img[i_n, :]
             lbls = np.append(np.full(len(def_imgs), 1), np.full(len(norm_imgs), 0), axis=0)
             imgs = np.append(def_imgs, norm_imgs, axis=0).reshape(-1, 160, 160)
@@ -133,12 +152,13 @@ def process_test_val_data(dataset, MTN, seed):
         Y = Y.numpy().reshape(17*24)
         i_a = np.where(Y == 1)[0]
         i_n = np.where(Y == 0)[0]
-        split_img = encode_split(ae, X)
+        encoded_img = encode(ae, X)
+        split_img = split(encoded_img)
         defects = defects + len(i_a)
         if len(i_a) > 0:
             def_imgs = split_img[i_a, :]
-            n_normal = def_imgs.shape[0]
-            i_n = np.random.choice(a=i_n, size=n_normal * MTN, replace=False)
+            #n_normal = def_imgs.shape[0]
+            #i_n = np.random.choice(a=i_n, size=n_normal * MTN, replace=False)
             norm_imgs = split_img[i_n, :]
             lbls = np.append(np.full(len(def_imgs), 1), np.full(len(norm_imgs), 0), axis=0)
             imgs = np.append(def_imgs, norm_imgs, axis=0).reshape(-1, 160, 160)
@@ -160,7 +180,9 @@ def process_test_val_bright_data(dataset, MTN, seed):
         Y = Y.numpy().reshape(17*24)
         i_a = np.where(Y == 1)[0]
         i_n = np.where(Y == 0)[0]
-        split_img = only_bright_split(X)
+        encoded_img = encode(ae, X)
+        brightness
+        split_img = split(encoded_img)
         defects = defects + len(i_a)
         if len(i_a) > 0:
             def_imgs = split_img[i_a, :]
@@ -177,15 +199,15 @@ def process_test_val_bright_data(dataset, MTN, seed):
     return dataset_epoch, img_list, lbl_list
 
 _, train_img_list, train_lbl_list = process_train_data(train_def_dataset, MTN, seed=1)
-np.save('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_%i.npy' % MTN, train_img_list)
-np.save('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_%i.npy' % MTN, train_lbl_list)
+np.save('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_aug_whole_%i.npy' % MTN, train_img_list)
+np.save('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_aug_whole_%i.npy' % MTN, train_lbl_list)
 
 _, test_img_list, test_lbl_list = process_test_val_data(test_def_dataset, MTN, seed = 2)
-np.save('/data/HGC_Si_scratch_detection_data/processed/'+'test_img_list_%i.npy' % MTN, test_img_list)
-np.save('/data/HGC_Si_scratch_detection_data/processed/'+'test_lbl_list_%i.npy' % MTN, test_lbl_list)
+np.save('/data/HGC_Si_scratch_detection_data/processed/'+'test_img_list_whole_%i.npy' % MTN, test_img_list)
+np.save('/data/HGC_Si_scratch_detection_data/processed/'+'test_lbl_list_whole_%i.npy' % MTN, test_lbl_list)
 
 _, val_img_list, val_lbl_list = process_test_val_data(val_def_dataset, MTN, seed = 3)
-np.save('/data/HGC_Si_scratch_detection_data/processed/'+'val_img_list_%i.npy' % MTN, val_img_list)
-np.save('/data/HGC_Si_scratch_detection_data/processed/'+'val_lbl_list_%i.npy' % MTN, val_lbl_list)
+np.save('/data/HGC_Si_scratch_detection_data/processed/'+'val_img_list_whole_%i.npy' % MTN, val_img_list)
+np.save('/data/HGC_Si_scratch_detection_data/processed/'+'val_lbl_list_whole_%i.npy' % MTN, val_lbl_list)
 
 print('All done!')

@@ -2,13 +2,9 @@ import numpy as np
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from tqdm import tqdm
+from old_codes.autoencoders import *
 from sklearn.metrics import confusion_matrix
-from helpers.dataset_helpers import create_cnn_dataset
-from autoencoders import *
-from common import *
-from sklearn.metrics import confusion_matrix, log_loss
-from scipy.ndimage.interpolation import rotate
-import random, argparse
+import random
 import matplotlib.pyplot as plt
 random.seed(42)
 

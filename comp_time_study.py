@@ -1,10 +1,9 @@
 import numpy as np
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-from common import *
 from scipy.ndimage.interpolation import rotate
-import random, argparse
-from autoencoders import *
+import random
+from old_codes.autoencoders import *
 random.seed(42)
 os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
@@ -96,7 +95,8 @@ t1 = time.time()
 pred = model.predict(imgs)
 t2 = time.time()
 
-from sklearn.metrics import confusion_matrix, log_loss
+from sklearn.metrics import confusion_matrix
+
 tn, fp, fn, tp = confusion_matrix(lbls, np.round(pred)).ravel()
 print('TH  Test tn, fp, fn, tp:  ', tn, fp, fn, tp)
 

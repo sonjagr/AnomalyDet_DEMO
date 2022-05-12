@@ -95,12 +95,12 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
 
     cmap = 'rainbow'
     diff = np.sqrt((aed-original)**2)
-    ax3.imshow(np.sqrt((aed-original)**2),cmap = cmap, vmin = -10, vmax =100, extent=extent, origin="upper")
+    ax3.imshow(diff,cmap = cmap, vmin=50, extent=extent, origin="upper")
     ax3.set_title('Difference', fontsize =16)
     ax3.tick_params(axis='both', which='both', bottom=False, left = False, labelbottom=False,labelleft=False)
 
     axins = ax3.inset_axes([lower[0], lower[1], xdim, ydim])
-    axins.imshow(np.sqrt((aed-original)**2), extent=extent, cmap = cmap, origin="upper")
+    axins.imshow(diff, extent=extent, cmap = cmap, vmin=50,  origin="upper")
     x1, x2, y1, y2 = boxX[0], boxX[1], boxY[0], boxY[1]
     axins.set_xlim(x1, x2)
     axins.set_ylim(y1, y2)

@@ -1,15 +1,4 @@
 import numpy as np
-import tensorflow
-import os, sys, math, time
-import pickle, argparse
-import shutil
-from pathlib import Path
-from tensorflow import keras
-from tqdm import tqdm
-from sklearn.model_selection import train_test_split
-from helpers.dataset_helpers import create_dataset, create_cnn_dataset
-from autoencoders import *
-from common import *
 
 base_dir = 'db/'
 dir_ae = "AE/"

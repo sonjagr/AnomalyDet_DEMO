@@ -4,8 +4,10 @@ import numpy as np
 from common import *
 from helpers.dataset_helpers import box_to_labels
 from sklearn.model_selection import train_test_split
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2"
 os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+
+"Sript that reads in the annotated files and creates separate files containing the image files for anomalous and non-anomalous images"
 
 np.random.seed(42)
 f = 'db/three_annotations/main_db_bb_crop.h5'
@@ -37,17 +39,8 @@ anomalous_labels['crop_lbls'] = pd.NaT
 anomalous_labels['crop_lbls'] = anomalous_labels.apply(lambda x: box_to_labels(x.orig_boxX, x.orig_boxY), axis=1)
 
 ## split into training and test sets
-X_train_normal, X_test_normal = train_test_split(normal_files.values, test_size=0.2, shuffle=True, random_state=42)
-X_train_anomalous, X_test_anomalous, Y_train_anomalous, Y_test_anomalous = train_test_split(anomalous_files.values, anomalous_labels.crop_lbls.values, test_size=0.2, shuffle=True, random_state=1)
-
-X_train_normal_list = X_train_normal
-X_test_normal_list = X_test_normal
-
-X_train_anomalous_list = X_train_anomalous
-X_test_anomalous_list = X_test_anomalous
-
-Y_train_anomalous_list = Y_train_anomalous
-Y_test_anomalous_list = Y_test_anomalous
+X_train_normal_list, X_test_normal_list = train_test_split(normal_files.values, test_size=0.2, shuffle=True, random_state=42)
+X_train_anomalous_list, X_test_anomalous_list, Y_train_anomalous_list, Y_test_anomalous_list = train_test_split(anomalous_files.values, anomalous_labels.crop_lbls.values, test_size=0.2, shuffle=True, random_state=1)
 
 base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
 #base_dir = 'db/'

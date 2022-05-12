@@ -3,7 +3,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix, log_loss
-from autoencoders import *
+from old_codes.autoencoders import *
 import random, argparse
 random.seed(42)
 
@@ -58,16 +58,6 @@ else:
     cont_epoch = 1
     training_scores, testing_scores = list(), list()
     from CNNs import *
-    if model_ID == 'model_simple':
-        model = model_simple
-    if model_ID == 'model_simple_noae':
-        model = model_simple_noae
-    if model_ID == 'model_works_newdatasplit':
-        model = model_works_newdatasplit
-    if model_ID == 'model_works_newdatasplit2':
-        model = model_works_newdatasplit2
-    if model_ID == 'model_works_newdatasplit3':
-        model = model_works_newdatasplit3
     if model_ID == 'model_works_newdatasplit4':
         model = model_works_newdatasplit4
 
@@ -76,20 +66,14 @@ print(model.summary())
 optimizer = tf.keras.optimizers.Adam(lr)
 model.compile(optimizer = optimizer, loss = 'binary_crossentropy', metrics = ['binary_crossentropy'])
 
-#how many normal images for each defective
-MTN = 10
-if is_ae == 1:
-    print('No AE')
-    train_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_noae_%i.npy' % MTN)
-    train_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_noae_%i.npy' % MTN)
-    test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_img_list_noae_%i.npy' % MTN)
-    test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_lbl_list_noae_%i.npy' % MTN)
-if is_ae == 0:
-    print('AE is used')
-    train_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_%i.npy' % MTN)
-    train_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_%i.npy' % MTN)
-    test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_img_list_%i.npy' % MTN)
-    test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_lbl_list_%i.npy' % MTN)
+# which dataset to use
+name = 'whole_4'
+
+train_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_aug_%s.npy' % name)
+train_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_aug_%s.npy' % name)
+
+test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_img_list_%s.npy' % name)
+test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_lbl_list_%s.npy' % name)
 
 print('max of training data', np.max(train_img_list))
 print('max of test data', np.max(test_img_list))
@@ -101,16 +85,19 @@ from sklearn.utils import shuffle
 
 print('Train shape', len(train_img_list), len(train_lbl_list))
 
+batches = np.floor(len(train_img_list)/batch_size)
+cut = int(np.mod(len(train_img_list), batches))
+
 for epoch in range(cont_epoch, epochs):
     print("\nStart of epoch %d" % (epoch,))
     train_scores_epoch = []
     b = 0
     train_img_list, train_lbl_list = shuffle(train_img_list, train_lbl_list)
-    train_img_list_cut = train_img_list[:-66]
-    train_lbl_list_cut = train_lbl_list[:-66]
+    train_img_list_cut = train_img_list[:-cut]
+    train_lbl_list_cut = train_lbl_list[:-cut]
     #MTN1 -12 and 50
-    train_img_batches =  np.split(train_img_list_cut, 275, axis=0)
-    train_lbl_batches = np.split(train_lbl_list_cut, 275, axis=0)
+    train_img_batches =  np.split(train_img_list_cut, batches, axis=0)
+    train_lbl_batches = np.split(train_lbl_list_cut, batches, axis=0)
     print(np.array(train_img_batches).shape)
     for x_batch, y_batch in tqdm(zip(train_img_batches, train_lbl_batches), total=len(train_lbl_batches)):
         model.fit(x_batch, y_batch, verbose = 0)
@@ -125,7 +112,7 @@ for epoch in range(cont_epoch, epochs):
         #    plt.title(y_batch[2])
         #    plt.show()
         #b = b+1
-        train_loss_batch = log_loss(y_batch, model.predict(x_batch).astype("float64"))
+        train_loss_batch = log_loss(y_batch, model.predict(x_batch).astype("float64"), labels = [0,1])
         train_scores_epoch.append(train_loss_batch)
         training_scores.append(train_loss_batch)
     print('Training loss: ', np.mean(train_scores_epoch))

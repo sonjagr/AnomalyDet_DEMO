@@ -1,13 +1,12 @@
 import numpy as np
 import tensorflow
-import os, sys, math, time
+import math, time
 import pickle, argparse
 import shutil
 from pathlib import Path
-from tensorflow import keras
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
-from helpers.dataset_helpers import create_dataset
+from helpers.dataset_helpers import create_dataset, resize
 from autoencoders2 import *
 from common import *
 
@@ -25,7 +24,7 @@ parser.add_argument("--savename", type=str,
 parser.add_argument("--load", type=bool,
                     help="Load old model or not", default = False, required=False)
 parser.add_argument("--contfromepoch", type=str,
-                    help="Epoch to continue training from", default=1, required=False)
+                    help="If load = True: Epoch to continue training from", default=1, required=False)
 args = parser.parse_args()
 
 epochs = args.epochs
@@ -45,7 +44,6 @@ def L2_loss_AE(model, x):
     reconstruction_error = tensorflow.reduce_mean(tensorflow.square(tensorflow.subtract(x_decoded, x)))
     return reconstruction_error
 
-# define the training step
 @tensorflow.function
 def train_step(model, x, optimizer):
     with tensorflow.GradientTape() as tape:
@@ -72,9 +70,9 @@ dir_ae = "AE/"
 X_train_list = np.load(base_dir + dir_ae + 'X_train_AE.npy', allow_pickle=True)
 X_test_list = np.load(base_dir + dir_ae + 'X_test_AE.npy', allow_pickle=True)
 
-np.random.seed(42)
-X_train_list = np.random.choice(X_train_list, 8000, replace=False)
-X_test_val_list = np.random.choice(X_test_list, 2000, replace=False)
+np.random.seed(1)
+X_train_list = np.random.choice(X_train_list, 16000, replace=False)
+X_test_val_list = np.random.choice(X_test_list, 4000, replace=False)
 X_test_list, X_val_list = train_test_split(X_test_val_list, test_size=0.5, random_state=42)
 
 X_train_list = [imgDir_gpu + s for s in X_train_list]
@@ -84,10 +82,6 @@ X_val_list = [imgDir_gpu + s for s in X_val_list]
 train_dataset = create_dataset(X_train_list, _shuffle=True).batch(batch_size)
 test_dataset = create_dataset(X_test_list, _shuffle=True).batch(batch_size)
 val_dataset = create_dataset(X_val_list, _shuffle=True).batch(batch_size)
-
-def resize(item):
-    model = tf.keras.Sequential([tf.keras.layers.Cropping2D(cropping=((0, 16),(0, 0)))])
-    return model(item)
 
 train_dataset = train_dataset.map(lambda item: tuple(tf.py_function(resize, [item], [tf.float32,])))
 test_dataset = test_dataset.map(lambda item: tuple(tf.py_function(resize, [item], [tf.float32,])))
@@ -103,20 +97,6 @@ if load == False:
         ae.initialize_network_TQ2()
     elif model_ID == 'TQ3':
         ae.initialize_network_TQ3()
-    elif model_ID == 'SG1':
-        ae.initialize_network_SG1()
-    elif model_ID == 'SG2':
-        ae.initialize_network_SG2()
-    elif model_ID == 'SG3':
-        ae.initialize_network_SG3()
-    elif model_ID == 'SG4':
-        ae.initialize_network_SG4()
-    elif model_ID == 'SG5':
-        ae.initialize_network_SG5()
-    elif model_ID == 'TQ3_DO':
-        ae.initialize_network_TQ3_DO()
-    elif model_ID == 'TQ3_DO2':
-        ae.initialize_network_TQ3_DO2()
     else:
         print('No model defined named ', model_ID)
     min_steps_train = []
@@ -124,10 +104,10 @@ if load == False:
     min_steps_test = []
     test_costs = []
 
-cp = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/'
+cp_loc = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/'
 if load == True:
-    ae.load(cp+model_ID+'_'+str(batch_size)+'_'+str(savename)+'/model_AE_'+model_ID+'_'+str(cont_epoch)+'_to_'+str(cont_epoch)+'_epochs')
-    with open(cp+model_ID+'_'+str(batch_size)+'_'+str(savename)+'/cost.pkl', "rb") as cost_file_pkl:
+    ae.load(cp_loc + model_ID + '_' + str(batch_size) + '_' + str(savename) + '/model_AE_' + model_ID + '_' + str(cont_epoch) + '_to_' + str(cont_epoch) + '_epochs')
+    with open(cp_loc + model_ID + '_' + str(batch_size) + '_' + str(savename) + '/cost.pkl', "rb") as cost_file_pkl:
         _x = pickle.load(cost_file_pkl)
         min_steps_train = _x["min_steps_train"]
         train_costs = _x["train_losses"]
@@ -138,7 +118,7 @@ patience = 10
 delta = 0.01
 saveModelEvery = 1
 
-model_name = 'model_AE_'+model_ID
+model_name = 'AE_'+model_ID
 save_location = os.path.join(TrainDir_gpu, model_ID+'_'+str(batch_size)+'_'+str(savename))
 Path(save_location).mkdir(parents=True, exist_ok=True)
 costFigurePath = os.path.join(save_location, "cost.pdf")
@@ -146,7 +126,7 @@ cost_file_path = costFigurePath.replace(".pdf", ".pkl")
 
 optimizer = tensorflow.keras.optimizers.Adam(1e-4)
 N_per_epoch = math.ceil(N_train / batch_size)
-min_step = 0 if len(min_steps_train)==0 else min_steps_train[-1]
+min_step = 0 if len(min_steps_train) == 0 else min_steps_train[-1]
 start_epoch = int(min_step / N_per_epoch)
 
 for epoch in range(1 + start_epoch, epochs + 1):
@@ -162,15 +142,15 @@ for epoch in range(1 + start_epoch, epochs + 1):
         L2 = loss.result()
         train_costs.append(L2.numpy())
         min_steps_train.append(min_step)
+
     print("Training sequence ended. Testing initiated.")
-    # compute loss on test images
     loss = tensorflow.keras.metrics.Mean()
     for test_x in tqdm(test_dataset, total=tensorflow.data.experimental.cardinality(test_dataset).numpy()):
         loss(L2_loss_AE(ae, test_x))
     test_loss = loss.result().numpy()
     min_steps_test.append(min_step)
     test_costs.append(test_loss)
-    # early stopping
+
     stopEarly = Callback_EarlyStopping(test_costs, min_delta=0.1, patience=20)
     stopEarly = False
     if stopEarly:
@@ -178,6 +158,7 @@ for epoch in range(1 + start_epoch, epochs + 1):
               f'validation loss in the last {patience} epochs.')
         print("Terminating training ")
         break
+
     end_time = time.time()
     print(f'Epoch: {epoch}, Test set L2-loss: {test_loss}, time elapsed for current epoch: {round(end_time - start_time, 1)} sec')
 

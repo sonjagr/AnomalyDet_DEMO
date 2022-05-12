@@ -1,16 +1,14 @@
 import numpy as np
-import tensorflow
-import os, sys, math, time
+import os
 from pathlib import Path
 import pickle
 import matplotlib.pyplot as plt
-import shutil
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "3"
-from tensorflow import keras
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from helpers.dataset_helpers import create_dataset
-from autoencoders import *
+from old_codes.autoencoders import *
 from common import *
 
 def read_from_pickle(path):
@@ -72,7 +70,6 @@ plt.grid(zorder = -3)
 plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/plots/'+savemodel+'/test_loss.png')
 plt.show()
 
-import cv2
 import matplotlib.pyplot as plt
 def plot_image(image, i):
     image = image[0]

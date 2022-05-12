@@ -1,8 +1,8 @@
-## CROP BOX SIZES
+## crop box sizes
 BOXSIZE_Y = 160
 BOXSIZE_X = 160
 
-## IMAGES MUST BE CROPPED IN Y DIRECTION TO ALLOW BOX SIZES
+## image sizes
 PICTURESIZE_Y = 2748-28
 PICTURESIZE_X = 3840
 SS_BOX_THRESH = 20
@@ -33,26 +33,26 @@ for row in range(int(BOXSIZE_Y/2), PICTURESIZE_Y, int(BOXSIZE_X/2)):
     for col in range(int(BOXSIZE_X/2), PICTURESIZE_X, int(BOXSIZE_X/2)):
         ANCHOR_GRID_OFFSET_X_Y.append([col, row])
 
-## BASE DIRECTORY WHERE IMAGES ARE STORED
+## base directory where images are stored
 imgDir_local = r'F:/ScratchDetection/MeasurementCampaigns/'
 imgDir_laptop_local = r'/media/gsonja/Samsung_T5/ScratchDetection/MeasurementCampaigns/'
 imgDir_gpu = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 
-## LIST OF CAMPAIGNS HERE
+## lsit of all campaigns to consider here
 Campaigns = ['EndOf2021_PM8','Fall2021_PM8', 'LongTermIV_2021_ALPS', 'September2021_PM8', 'Winter2022_ALPS']
 Campaigns = ['Fall2021_PM8']
 
-## ANNOTATED IMAGES OUTPUT FILE
+## output file for annotations
 #DataBaseFile = 'EndOf2021_PM8.h5'
-DataBaseFile = 'annotation_testing_delete'
+#DataBaseFile = 'annotation_testing_delete'
 
-## DIRECTORY WHERE DF CONTAINING ANNOTATIONS WILL BE STORED
+## directory where annotation files will be stored
 DataBaseFileLocation_gpu = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/'
 DataBaseFileLocation_local = 'db/three_annotations/'
 
 TrainDir_gpu = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/'
 
-TEST_FRAC = 0.2
+TEST_FRAC = 0.1
 VAL_FRAC = 0.1
 TRAIN_FRAC = 1. - TEST_FRAC - VAL_FRAC
 

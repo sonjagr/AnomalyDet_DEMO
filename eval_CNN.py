@@ -1,7 +1,7 @@
 import numpy as np
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-from autoencoders import *
+from old_codes.autoencoders import *
 import random
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve

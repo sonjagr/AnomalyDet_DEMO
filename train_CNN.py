@@ -3,10 +3,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
-from helpers.dataset_helpers import create_cnn_dataset
-from autoencoders import *
-from common import *
-from scipy.ndimage.interpolation import rotate
+from old_codes.autoencoders import *
 import random, argparse
 import matplotlib.pyplot as plt
 random.seed(42)
@@ -45,8 +42,8 @@ cont_epoch = args.contfromepoch
 os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
 def classifier_scores(test_loss, train_loss, title):
-    plt.plot(np.arange(0,len(test_loss)), test_loss, label = 'Test loss')
-    plt.plot(np.arange(0,len(train_loss)), train_loss, linestyle= '--', label = 'Train loss')
+    plt.plot(np.arange(0, len(test_loss)), test_loss, label = 'Test loss')
+    plt.plot(np.arange(0, len(train_loss)), train_loss, linestyle= '--', label = 'Train loss')
     plt.grid()
     plt.legend()
     plt.xlabel('Epoch')
@@ -57,13 +54,13 @@ def classifier_scores(test_loss, train_loss, title):
 bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 @tf.function
 def compute_loss_train(model, x, y_ref):
-    y = model(x, training=True)
+    y = model(x)
     reconstruction_error = bce(y_ref, y)
     return reconstruction_error
 
 @tf.function
 def compute_loss_test(model, x, y_ref):
-    y = model(x, training = False)
+    y = model(x)
     reconstruction_error = bce(y_ref, y)
     return reconstruction_error
 
@@ -91,41 +88,23 @@ else:
     cont_epoch = 1
     training_scores, testing_scores = list(), list()
     from CNNs import *
-    if model_ID == 'model_init2_lessr2':
-        model = model_init2_lessr2
-    if model_ID == 'model_init2_lessr2_larger':
-        model = model_init2_lessr2_larger
-    if model_ID == 'model_init2_lessr2_larger2':
-        model = model_init2_lessr2_larger2
-    if model_ID == 'model_init2_lessr2_larger_noae':
-        model = model_init2_lessr2_larger_noae
-    if model_ID == 'model_init2_lessr2_larger3':
-        model = model_init2_lessr2_larger3
-    if model_ID == 'model_works3':
-        model = model_works3
-    if model_ID == 'model_works_newdatasplit':
-        model = model_works_newdatasplit
-    if model_ID == 'model_works_simplest':
-        model = model_works_simplest
+    if model_ID == 'model_works_newdatasplit4':
+        model = model_works_newdatasplit4
+    if model_ID == 'model_maxpool':
+        model = model_maxpool
 
 print(model.summary())
 
 optimizer = tf.keras.optimizers.Adam(lr)
 
-#how many normal images for each defective
-MTN = 1
-if is_ae == 1:
-    print('No AE')
-    train_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_img_list_noae_%i.npy' % MTN)
-    train_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_lbl_list_noae_%i.npy' % MTN)
-    test_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'val_img_list_noae_%i.npy' % MTN)
-    test_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'val_lbl_list_noae_%i.npy' % MTN)
-if is_ae == 0:
-    print('AE is used')
-    train_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_img_list_%i.npy' % MTN)
-    train_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_lbl_list_%i.npy' % MTN)
-    test_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'val_img_list_%i.npy' % MTN)
-    test_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'val_lbl_list_%i.npy' % MTN)
+# which dataset to use
+name = '1'
+
+train_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_img_list_%s.npy' % name)
+train_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'train_lbl_list_%s.npy' % name)
+
+test_img_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'val_img_list_%s.npy' % name)
+test_lbl_list = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/processed/'+'val_lbl_list_%s.npy' % name)
 
 processed_train_dataset = tf.data.Dataset.from_tensor_slices((train_img_list, train_lbl_list)).shuffle(train_img_list.shape[0], reshuffle_each_iteration=True).batch(batch_size, drop_remainder=True)
 processed_test_dataset = tf.data.Dataset.from_tensor_slices((test_img_list, test_lbl_list)).batch(1)
@@ -138,10 +117,10 @@ for epoch in range(cont_epoch, epochs):
         train_step(model, x_batch, y_batch, optimizer)
         loss = tf.keras.metrics.Mean()
         loss(compute_loss_train(model, x_batch, y_batch))
-        cross_entr = loss.result()
-        training_scores.append(cross_entr.numpy())
+        mean_cross_entr = loss.result()
+        training_scores.append(mean_cross_entr.numpy())
 
-    print('Training loss: ', cross_entr.numpy())
+    print('Training loss: ', mean_cross_entr.numpy())
     try:
         os.makedirs('saved_class/%s' % savename)
     except FileExistsError:
