@@ -103,16 +103,18 @@ if load == False:
     train_costs = []
     min_steps_test = []
     test_costs = []
+    start_epoch = 0
 
 cp_loc = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/'
 if load == True:
-    ae.load(cp_loc + model_ID + '_' + str(batch_size) + '_' + str(savename) + '/model_AE_' + model_ID + '_' + str(cont_epoch) + '_to_' + str(cont_epoch) + '_epochs')
+    ae.load(cp_loc + model_ID + '_' + str(batch_size) + '_' + str(savename) + '/AE_' + model_ID + '_' + str(cont_epoch) + '_to_' + str(cont_epoch) + '_epochs')
     with open(cp_loc + model_ID + '_' + str(batch_size) + '_' + str(savename) + '/cost.pkl', "rb") as cost_file_pkl:
         _x = pickle.load(cost_file_pkl)
         min_steps_train = _x["min_steps_train"]
         train_costs = _x["train_losses"]
         min_steps_test = _x["min_steps_test"]
         test_costs = _x["test_losses"]
+        start_epoch = int(cont_epoch) -1
 
 patience = 10
 delta = 0.01

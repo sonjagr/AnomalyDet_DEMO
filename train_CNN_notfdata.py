@@ -67,10 +67,10 @@ optimizer = tf.keras.optimizers.Adam(lr)
 model.compile(optimizer = optimizer, loss = 'binary_crossentropy', metrics = ['binary_crossentropy'])
 
 # which dataset to use
-name = 'whole_4'
+name = '4'
 
-train_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_aug_%s.npy' % name)
-train_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_aug_%s.npy' % name)
+train_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_%s.npy' % name)
+train_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_%s.npy' % name)
 
 test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_img_list_%s.npy' % name)
 test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_lbl_list_%s.npy' % name)
@@ -100,7 +100,7 @@ for epoch in range(cont_epoch, epochs):
     train_lbl_batches = np.split(train_lbl_list_cut, batches, axis=0)
     print(np.array(train_img_batches).shape)
     for x_batch, y_batch in tqdm(zip(train_img_batches, train_lbl_batches), total=len(train_lbl_batches)):
-        weights = dict(zip([0, 1], [1, 250]))
+        weights = dict(zip([0, 1], [1, 4]))
         model.fit(x_batch, y_batch, class_weight = weights, verbose = 0)
         train_loss_batch = log_loss(y_batch, model.predict(x_batch).astype("float64"), labels = [0,1])
         train_scores_epoch.append(train_loss_batch)

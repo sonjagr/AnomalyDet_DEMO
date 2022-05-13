@@ -9,76 +9,8 @@ from scipy.ndimage.interpolation import rotate
 import random
 print(tf.__version__) ##2.2
 random.seed(42)
-
+from helpers.dataset_helpers import rotate_img, rgb2bayer, bayer2rgb, change_brightness_patch, change_brightness, encode, split
 os.environ["CUDA_VISIBLE_DEVICES"] = '2'
-
-## function to add rotation to images
-def rotate_img(img):
-    img = img.reshape(160,160)
-    rot_angle = random.choice([90, 180, 270])
-    rot = rotate(img, rot_angle)
-    return rot.flatten()
-
-## convert rgb to bayer format
-def rgb2bayer(rgb):
-    (h,w) = rgb.shape[0], rgb.shape[1]
-    (r,g,b) = cv2.split(rgb)
-    bayer = np.empty((h,w), np.uint8)
-    bayer[0::2, 0::2] = r[0::2, 0::2]
-    bayer[0::2, 1::2] = g[0::2, 1::2]
-    bayer[1::2, 0::2] = g[1::2, 0::2]
-    bayer[1::2, 1::2] = b[1::2, 1::2]
-    return bayer
-
-## convert bayer to rgb
-def bayer2rgb(bayer):
-    return cv2.cvtColor(bayer.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
-
-## change the brightness of whole images
-def change_brightness(img, value):
-    value = value.astype('uint8')
-    rgb = bayer2rgb(img.reshape(2736, 3840))
-    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
-
-    h, s, v = cv2.split(hsv)
-    lim = 255 - value
-    v[v > lim] = 255
-    v[v <= lim] += value
-
-    final_hsv = cv2.merge((h, s, v))
-    final_rgb = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2RGB)
-    final_bayer = rgb2bayer(final_rgb)
-    return final_bayer.reshape(-1, 2736, 3840, 1)
-
-## change the brightness of patches
-def change_brightness_patch(img):
-    value = random.choice(np.arange(-51,51,1)).astype('uint8')
-    rgb = bayer2rgb(img.reshape(160, 160))
-    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
-
-    h, s, v = cv2.split(hsv)
-    lim = 255 - value
-    v[v > lim] = 255
-    v[v <= lim] += value
-
-    final_hsv = cv2.merge((h, s, v))
-    final_rgb = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2RGB)
-    final_bayer = rgb2bayer(final_rgb)
-    return final_bayer.reshape(160, 160).flatten()
-
-## function to calculate autoencoder reconstruction error as absolute error
-def encode(ae, img):
-    img = img[0].numpy().reshape(1, 2736, 3840, 1)[:, :2720, :, :]
-    encoded_img = ae.encode(img)
-    decoded_img = ae.decode(encoded_img).numpy()
-    aed_img = np.sqrt(np.power(np.subtract(img, decoded_img),2))
-    return aed_img
-
-def split(img):
-    img = img[0].numpy().reshape(1, 2736, 3840, 1)[:, :2720, :, :]
-    img = tf.convert_to_tensor(img, np.float32)
-    split_img = tf.image.extract_patches(images=img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1],rates=[1, 1, 1, 1], padding='VALID')
-    return split_img.numpy().reshape(17 * 24, 160 * 160)
 
 ae = AutoEncoder()
 print('Loading autoencoder...')
