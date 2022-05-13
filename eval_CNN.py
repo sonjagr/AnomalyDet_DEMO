@@ -9,7 +9,7 @@ from sklearn import metrics
 random.seed(42)
 from sklearn.metrics import confusion_matrix, log_loss
 tf.keras.backend.clear_session()
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 def plot_roc_curve(fpr1, tpr1, auc1, fpr2, tpr2, auc2):
     plt.plot(fpr1, tpr1, color = 'C1', label = 'CNN, AUC = '+str(round(auc1, 2)))
@@ -56,19 +56,20 @@ savename = 'notf_noae'
 savename = 'notf_withae_MTN4'
 savename = 'larger_model4'
 #savename = 'larger_model_10'
-cont_epoch = 160
+savename = 'larger_model4_whole2'
+cont_epoch = 3
 
 base_dir = 'db/'
 dir_det = 'DET/'
 MTN = 4
 
 images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
-train_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_%i.npy' % MTN)
-train_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_%i.npy' % MTN)
-val_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_img_list_%i.npy' % MTN)
-val_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_lbl_list_%i.npy' % MTN)
-test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'test_img_list_%i.npy' % MTN)
-test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'test_lbl_list_%i.npy' % MTN)
+train_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_aug_whole_%i.npy' % MTN)
+train_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_aug_whole_%i.npy' % MTN)
+val_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_img_list_whole_%i.npy' % MTN)
+val_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_lbl_list_whole_%i.npy' % MTN)
+test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'test_img_list_whole_%i.npy' % MTN)
+test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'test_lbl_list_whole_%i.npy' % MTN)
 
 test_loss = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/losses/%s/test_loss_%s.npy' % (savename, savename))
 train_loss = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/losses/%s/train_loss_%s.npy' % (savename, savename))
@@ -78,8 +79,8 @@ plt.plot(np.arange(1,len(test_loss)+1, len(test_loss)/len(train_loss)), train_lo
 plt.plot(np.arange(1,len(test_loss)+1), test_loss, label = 'Validation')
 plt.plot([160,160,160],[0,0.5 ,0.73], color = 'red', linestyle = '--', linewidth = 2)
 plt.grid()
-plt.xlim(0,200)
-plt.ylim(0,0.72)
+#plt.xlim(0,200)
+plt.ylim(0,5)
 plt.tick_params(axis='both', which='major', labelsize=14)
 plt.legend(fontsize = 14)
 plt.xlabel('Epoch', fontsize = 14)

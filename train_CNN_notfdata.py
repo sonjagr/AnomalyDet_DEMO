@@ -100,18 +100,8 @@ for epoch in range(cont_epoch, epochs):
     train_lbl_batches = np.split(train_lbl_list_cut, batches, axis=0)
     print(np.array(train_img_batches).shape)
     for x_batch, y_batch in tqdm(zip(train_img_batches, train_lbl_batches), total=len(train_lbl_batches)):
-        model.fit(x_batch, y_batch, verbose = 0)
-        #if b < 6:
-        #    plt.imshow(x_batch[0])
-        #    plt.title(y_batch[0])
-        #    plt.show()
-        #    plt.imshow(x_batch[1])
-        #    plt.title(y_batch[1])
-        #    plt.show()
-        #    plt.imshow(x_batch[2])
-        #    plt.title(y_batch[2])
-        #    plt.show()
-        #b = b+1
+        weights = dict(zip([0, 1], [1, 250]))
+        model.fit(x_batch, y_batch, class_weight = weights, verbose = 0)
         train_loss_batch = log_loss(y_batch, model.predict(x_batch).astype("float64"), labels = [0,1])
         train_scores_epoch.append(train_loss_batch)
         training_scores.append(train_loss_batch)
