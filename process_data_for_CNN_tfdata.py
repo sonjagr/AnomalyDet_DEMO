@@ -62,13 +62,13 @@ diff_imgs = imgs.map(lambda x: tuple(tf.py_function(encode, [x], [tf.float32, ])
 
 def crop_images(image):
     split_img = tf.image.extract_patches(images=image, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1], rates=[1, 1, 1, 1], padding='VALID')
-    print(split_img)
-    noisy_ds = tf.data.Dataset.from_tensors((split_img))
+    re = tf.reshape(split_img, [17*24,  160 * 160])
+    noisy_ds = tf.data.Dataset.from_tensors((re))
     return noisy_ds
 
-print(tf.data.experimental.cardinality(diff_imgs).numpy())
+print(tf.data.experimental.cardinality(diff_imgs).numpy().shape)
 patched_imgs = diff_imgs.flat_map(crop_images)
-print(tf.data.experimental.cardinality(patched_imgs).numpy())
+print(tf.data.experimental.cardinality(patched_imgs).numpy().shape)
 
 #patched_imgs = diff_imgs.flat_map(lambda x: tuple(tf.py_function(crop_images, [x], [tf.float32, ])))
 
@@ -89,10 +89,11 @@ for X in tqdm(diff_imgs, total=tf.data.experimental.cardinality(diff_imgs).numpy
 w=0
 for X in tqdm(patched_imgs, total=tf.data.experimental.cardinality(patched_imgs).numpy()):
     if w == 0:
-        plt.imshow(X[0][0][0].numpy().reshape(160, 160))
+        print(X)
+        plt.imshow(X[0].numpy().reshape(160, 160))
         print(X[0].numpy().shape)
         plt.show()
-        plt.imshow(X[0][0][10].numpy().reshape(160, 160))
+        plt.imshow(X[0].numpy().reshape(160, 160))
         plt.show()
     w = w+1
 
