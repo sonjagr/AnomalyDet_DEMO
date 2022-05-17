@@ -72,26 +72,14 @@ def rgb2bayer(rgb):
 
 ## convert bayer to rgb
 def bayer2rgb(bayer):
-    return cv2.cvtColor(bayer, cv2.COLOR_BAYER_RG2RGB)
-
-def tf_bayer2rgb(image):
-  im_shape = image.shape
-  [image,] = tf.py_function(bayer2rgb, [image], [tf.uint8])
-  image.set_shape(im_shape)
-  return image
-
-def tf_rgb2bayer(image):
-  im_shape = image.shape
-  [image,] = tf.py_function(rgb2bayer, [image], [tf.uint8])
-  image.set_shape(im_shape)
-  return image
+    return cv2.cvtColor(bayer.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
 
 ## change brightness of patch
 def bright_image(img):
     value = random.choice(np.arange(-51,51,1))
     value = value.astype('uint8')
-
-    rgb = tf_bayer2rgb(img)
+    img = img.numpy()
+    rgb = bayer2rgb(img)
     hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
 
     h, s, v = cv2.split(hsv)
@@ -137,7 +125,9 @@ def preprocess(imgs, lbls, to_encode = True, normal_times = 50, to_augment = Fal
         rotated_anomalous_dataset = tf.data.Dataset.zip((rotated_dataset, anomalous_labels))
         combined_anomalous_dataset = anomalous_dataset.concatenate(rotated_anomalous_dataset)
         if to_brightness == True:
-            bright_dataset = anomalous_images.map(lambda x: tf_bright_image(x))
+            bright_dataset = anomalous_images
+            #rgb_dataset = bright_dataset.map(lambda x: tf_bayer2rgb(x))
+            bright_dataset = bright_dataset.map(lambda x: tf_bright_image(x))
             bright_anomalous_dataset = tf.data.Dataset.zip((bright_dataset, anomalous_labels))
             bright_anomalous_dataset = bright_anomalous_dataset.map(lambda x, y: (tf.cast(x, tf.float32), y))
             combined_anomalous_dataset = combined_anomalous_dataset.concatenate(bright_anomalous_dataset)
@@ -248,7 +238,6 @@ for epoch in tqdm(range(cont_epoch, num_epochs), total = num_epochs):
     epoch_train_loss_mean, epoch_val_loss_mean = tf.keras.metrics.Mean(), tf.keras.metrics.Mean()
     epoch_train_accuracy, epoch_val_accuracy = tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.BinaryAccuracy()
     #epoch_train_accuracy, epoch_val_accuracy = tf.keras.metrics.FalseNegatives(), tf.keras.metrics.FalseNegatives()
-
 
     for x, y in train_combined_dataset_batch:
         x = tf.reshape(x, [-1, 160, 160, 1])
