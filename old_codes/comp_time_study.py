@@ -48,7 +48,7 @@ model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detecti
 #model = tf.keras.models.load_model('saved_class/cnn_%s_epoch_%i' % (savename,cont_epoch))
 
 
-base_dir = 'db/'
+base_dir = '../db/'
 dir_det = 'DET/'
 MTN = 1
 

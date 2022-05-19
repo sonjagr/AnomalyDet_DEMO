@@ -11,7 +11,7 @@ from common import *
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 ae = AutoEncoder()
 import matplotlib.pyplot as plt
 import time
@@ -19,7 +19,7 @@ random.seed(42)
 
 ae = AutoEncoder()
 savename = 'works2'
-cont_epoch = 350
+cont_epoch = 168
 base_dir = 'db/'
 dir_det = 'DET/'
 
@@ -28,8 +28,7 @@ computer = 'gpu'
 if computer == 'gpu':
     ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
     model = tf.keras.models.load_model(
-        '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_class/%s/cnn_%s_epoch_%i' % (
-        savename, savename, cont_epoch))
+        '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/testing_brightness/cnn_testing_brightness_epoch_168')
     images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 if computer == 'local':
     ae.load('saved_class/model_AE_TQ3_500_to_500_epochs')
