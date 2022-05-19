@@ -29,8 +29,8 @@ X_test_det_list = [images_dir_loc + s for s in X_test_det_list]
 Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET.npy', allow_pickle=True).tolist()
 Y_test_det_list = np.load(base_dir + dir_det + 'Y_test_DET.npy', allow_pickle=True).tolist()
 
-X_train_det_list = X_train_det_list[:300]
-X_test_det_list = X_test_det_list[:100]
+X_train_det_list = X_train_det_list
+X_test_det_list = X_test_det_list
 
 N_det_test = int(len(X_test_det_list)/2)
 N_det_train = len(X_train_det_list)
@@ -41,7 +41,7 @@ test_def_dataset = create_cnn_dataset(X_test_det_list[:N_det_test], Y_test_det_l
 val_def_dataset = create_cnn_dataset(X_test_det_list[-N_det_test:], Y_test_det_list[-N_det_test:], _shuffle=False)
 
 #how many normal images for each defective
-MTN = 4
+MTN = 10
 
 def process_train_data(dataset, MTN, seed):
     random.seed(seed)

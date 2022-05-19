@@ -20,7 +20,7 @@ random.seed(42)
 ae = AutoEncoder()
 savename = 'works2'
 cont_epoch = 168
-base_dir = 'db/'
+base_dir = '../db/'
 dir_det = 'DET/'
 
 computer = 'gpu'

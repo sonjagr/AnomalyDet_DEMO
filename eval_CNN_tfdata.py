@@ -7,12 +7,13 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve
 from sklearn import metrics
 import tqdm
+import seaborn as sns
 random.seed(42)
 from helpers.dataset_helpers import create_dataset
 from helpers.cnn_helpers import ds_length, grad, preprocess
 from sklearn.metrics import confusion_matrix, log_loss
 tf.keras.backend.clear_session()
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] =
 
 def plot_roc_curve(fpr1, tpr1, auc1):
     plt.plot(fpr1, tpr1, color = 'C1', label = 'CNN, AUC = '+str(round(auc1, 2)))
@@ -86,8 +87,11 @@ X_val_det_list = np.load(base_dir + dir_det + 'X_test_DET.npy', allow_pickle=Tru
 X_val_det_list = [images_dir_loc + s for s in X_val_det_list]
 Y_val_det_list = np.load(base_dir + dir_det + 'Y_test_DET.npy', allow_pickle=True).tolist()
 
-X_val_det_list = X_val_det_list[-100:]
-Y_val_det_list = Y_val_det_list[-100:]
+N_det_val = int(len(X_val_det_list))
+## how many samples used
+X_val_det_list = X_val_det_list[int(N_det_val/2):]
+Y_val_det_list = Y_val_det_list[int(N_det_val/2):]
+
 
 N_det_val = int(len(X_val_det_list))
 print('Loaded number of val samples: ', N_det_val)
@@ -120,7 +124,8 @@ print('AUC: ', auc)
 
 plot_roc_curve(fpr, tpr, auc)
 
-tn, fp, fn, tp = confusion_matrix(trues, rounding_thresh(predictions, 0.1)).ravel()
+cm = confusion_matrix(trues, rounding_thresh(predictions, 0.01))
+tn, fp, fn, tp = cm.ravel()
 print('tn, fp, fn, tp: ', tn, fp, fn, tp)
 error = (fp+fn)/(tp+tn+fp+fn)
 print('Error: ', error)
@@ -128,6 +133,11 @@ acc = 1-error
 print('Accuracy: ', acc)
 print('FPR: ', fp/(fp+tn))
 print('FNR: ', fn/(fn+tp))
+
+import sklearn
+plt.figure(1)
+cm_display = sklearn.metrics.ConfusionMatrixDisplay(cm).plot()
+plt.show()
 
 thresholds = np.arange(0.01, 0.5, 0.01)
 fps = []

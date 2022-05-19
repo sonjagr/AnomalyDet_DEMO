@@ -21,11 +21,20 @@ def dyn_weighted_bincrossentropy(true, pred):
     one_weight = tf.keras.backend.sum(tf.keras.backend.cast(pred < 0.5, true.dtype)) / num_pred + tf.keras.backend.epsilon()
     # calculate the weight vector
     weights = (1.0 - true) * zero_weight + true * one_weight
-    # calculate the binary cross entropy
+
     bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
     bin_crossentropy =bce(true, pred)
-    # apply the weights
+
     weighted_bin_crossentropy = weights * bin_crossentropy
+    return tf.keras.backend.mean(weighted_bin_crossentropy)
+
+def weighted_bincrossentropy(true, pred, weight_zero=1.0, weight_one=0.1):
+    bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+    bin_crossentropy = bce(true, pred)
+
+    weights = true * weight_one + (1. - true) * weight_zero
+    weighted_bin_crossentropy = weights * bin_crossentropy
+
     return tf.keras.backend.mean(weighted_bin_crossentropy)
 
 ## crop bottom part
@@ -110,9 +119,10 @@ def tf_bright_image(image):
 def loss(model, x, y, training):
     y_ = model(x, training=training)
     if training:
-        loss_is = dyn_weighted_bincrossentropy(true=y, pred=y_)
+        loss_is = weighted_bincrossentropy(true=y, pred=y_)
     if not training:
-        loss_is = tf.keras.losses.BinaryCrossentropy(y, y_, from_logits=False)
+        bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+        loss_is = bce(y, y_)
     return loss_is
 
 # calculate the gradient
@@ -157,7 +167,7 @@ def preprocess(imgs, lbls, to_encode = True, ae = False, normal_times = 50, to_a
         bright_patched_imgs = bright_diff_imgs.flat_map(patch_images)
         bright_patched_imgs = bright_patched_imgs.unbatch()
 
-    dataset = tf.data.Dataset.zip((patched_imgs, patched_lbls))
+    dataset = tf.data.Dataset.zip((patched_imgs, patched_lbls)).shuffle(buffer_size = 20000, reshuffle_each_iteration = True)
 
     anomalous_dataset = dataset.filter(lambda x, y: y == 1.)
     anomalous_nbr_before = ds_length(anomalous_dataset)
@@ -186,7 +196,7 @@ def preprocess(imgs, lbls, to_encode = True, ae = False, normal_times = 50, to_a
     anomalous_nbr = ds_length(combined_anomalous_dataset)
     normal_dataset = dataset.filter(lambda x, y: y == 0.).shuffle(500).take(normal_times * anomalous_nbr)
 
-    combined_dataset_batch = normal_dataset.concatenate(combined_anomalous_dataset).shuffle(buffer_size = 20000, reshuffle_each_iteration = True).batch(batch_size=batch_size, drop_remainder=drop_rem)
+    combined_dataset_batch = normal_dataset.concatenate(combined_anomalous_dataset).batch(batch_size=batch_size, drop_remainder=drop_rem)
     return combined_dataset_batch, anomalous_nbr_before, anomalous_nbr
 
 
