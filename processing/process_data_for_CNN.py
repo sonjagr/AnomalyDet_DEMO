@@ -7,10 +7,9 @@ from helpers.dataset_helpers import create_cnn_dataset
 from old_codes.autoencoders import *
 from scipy.ndimage.interpolation import rotate
 import random
-print(tf.__version__) ##2.2
 random.seed(42)
-from helpers.dataset_helpers import rotate_img, rgb2bayer, bayer2rgb, change_brightness_patch, change_brightness, encode, split
-os.environ["CUDA_VISIBLE_DEVICES"] = '2'
+from helpers.dataset_helpers import rotate_img, encode, split_numpy
+os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 
 ae = AutoEncoder()
 print('Loading autoencoder...')
@@ -41,7 +40,7 @@ test_def_dataset = create_cnn_dataset(X_test_det_list[:N_det_test], Y_test_det_l
 val_def_dataset = create_cnn_dataset(X_test_det_list[-N_det_test:], Y_test_det_list[-N_det_test:], _shuffle=False)
 
 #how many normal images for each defective
-MTN = 10
+MTN = 19
 
 def process_train_data(dataset, MTN, seed):
     random.seed(seed)
@@ -54,16 +53,19 @@ def process_train_data(dataset, MTN, seed):
         i_a = np.where(Y == 1)[0]
         i_n = np.where(Y == 0)[0]
         encoded_img = encode(ae, X)
-        split_img = split(encoded_img)
+        split_img = split_numpy(encoded_img)
         defects = defects + len(i_a)
         if len(i_a) > 0:
             def_imgs = split_img[i_a, :]
             rotated = np.array([rotate_img(item) for item in def_imgs])
             def_imgs = np.append(def_imgs, rotated, axis=0)
-            brightness = np.array([change_brightness_patch(item) for item in def_imgs])
-            def_imgs = np.append(def_imgs, brightness, axis=0)
-            #n_normal = def_imgs.shape[0]
-            #i_n = np.random.choice(a=i_n, size=n_normal * MTN, replace=False)
+            #brightness = np.array([change_brightness_patch(item) for item in def_imgs])
+            #def_imgs = np.append(def_imgs, brightness, axis=0)
+            n_normal = def_imgs.shape[0]
+            size = n_normal*MTN
+            if size > len(i_n):
+                size = len(i_n)
+            i_n = np.random.choice(a=i_n, size=size, replace=False)
             norm_imgs = split_img[i_n, :]
             lbls = np.append(np.full(len(def_imgs), 1), np.full(len(norm_imgs), 0), axis=0)
             imgs = np.append(def_imgs, norm_imgs, axis=0).reshape(-1, 160, 160)
@@ -85,12 +87,15 @@ def process_test_val_data(dataset, MTN, seed):
         i_a = np.where(Y == 1)[0]
         i_n = np.where(Y == 0)[0]
         encoded_img = encode(ae, X)
-        split_img = split(encoded_img)
+        split_img = split_numpy(encoded_img)
         defects = defects + len(i_a)
         if len(i_a) > 0:
             def_imgs = split_img[i_a, :]
-            #n_normal = def_imgs.shape[0]
-            #i_n = np.random.choice(a=i_n, size=n_normal * MTN, replace=False)
+            n_normal = def_imgs.shape[0]
+            size = n_normal * MTN
+            if size > len(i_n):
+                size = len(i_n)
+            i_n = np.random.choice(a=i_n, size=size, replace=False)
             norm_imgs = split_img[i_n, :]
             lbls = np.append(np.full(len(def_imgs), 1), np.full(len(norm_imgs), 0), axis=0)
             imgs = np.append(def_imgs, norm_imgs, axis=0).reshape(-1, 160, 160)
@@ -113,8 +118,8 @@ def process_test_val_bright_data(dataset, MTN, seed):
         i_a = np.where(Y == 1)[0]
         i_n = np.where(Y == 0)[0]
         encoded_img = encode(ae, X)
-        brightness
-        split_img = split(encoded_img)
+        #brightness
+        split_img = split_numpy(encoded_img)
         defects = defects + len(i_a)
         if len(i_a) > 0:
             def_imgs = split_img[i_a, :]
@@ -131,15 +136,15 @@ def process_test_val_bright_data(dataset, MTN, seed):
     return dataset_epoch, img_list, lbl_list
 
 _, train_img_list, train_lbl_list = process_train_data(train_def_dataset, MTN, seed=1)
-np.save('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_aug_whole_%i.npy' % MTN, train_img_list)
-np.save('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_aug_whole_%i.npy' % MTN, train_lbl_list)
+np.save('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_aug_%i.npy' % MTN, train_img_list)
+np.save('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_aug_%i.npy' % MTN, train_lbl_list)
 
 _, test_img_list, test_lbl_list = process_test_val_data(test_def_dataset, MTN, seed = 2)
-np.save('/data/HGC_Si_scratch_detection_data/processed/'+'test_img_list_whole_%i.npy' % MTN, test_img_list)
-np.save('/data/HGC_Si_scratch_detection_data/processed/'+'test_lbl_list_whole_%i.npy' % MTN, test_lbl_list)
+np.save('/data/HGC_Si_scratch_detection_data/processed/'+'test_img_list_%i.npy' % MTN, test_img_list)
+np.save('/data/HGC_Si_scratch_detection_data/processed/'+'test_lbl_list_%i.npy' % MTN, test_lbl_list)
 
 _, val_img_list, val_lbl_list = process_test_val_data(val_def_dataset, MTN, seed = 3)
-np.save('/data/HGC_Si_scratch_detection_data/processed/'+'val_img_list_whole_%i.npy' % MTN, val_img_list)
-np.save('/data/HGC_Si_scratch_detection_data/processed/'+'val_lbl_list_whole_%i.npy' % MTN, val_lbl_list)
+np.save('/data/HGC_Si_scratch_detection_data/processed/'+'val_img_list_%i.npy' % MTN, val_img_list)
+np.save('/data/HGC_Si_scratch_detection_data/processed/'+'val_lbl_list_%i.npy' % MTN, val_lbl_list)
 
 print('All done!')

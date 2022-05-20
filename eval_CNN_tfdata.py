@@ -13,7 +13,7 @@ from helpers.dataset_helpers import create_dataset
 from helpers.cnn_helpers import ds_length, grad, preprocess
 from sklearn.metrics import confusion_matrix, log_loss
 tf.keras.backend.clear_session()
-os.environ["CUDA_VISIBLE_DEVICES"] =
+os.environ["CUDA_VISIBLE_DEVICES"] = '2'
 
 def plot_roc_curve(fpr1, tpr1, auc1):
     plt.plot(fpr1, tpr1, color = 'C1', label = 'CNN, AUC = '+str(round(auc1, 2)))
@@ -70,8 +70,9 @@ def plot_losses(train_loss, val_loss):
     plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/cnn_trainin.png', dpi = 600)
     plt.show()
 
-savename = 'testing_brightness'
-model_loc = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_186' % (savename, savename)
+savename = 'testing_brightness_10'
+epoch = 14
+model_loc = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%i' % (savename, savename, epoch)
 model = tf.keras.models.load_model(model_loc)
 
 base_dir = 'db/'

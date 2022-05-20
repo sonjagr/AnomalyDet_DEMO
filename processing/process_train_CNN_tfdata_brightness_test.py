@@ -30,6 +30,7 @@ parser.add_argument("--load", type=str,
                     help="Load old model or not", default = "False", required=False)
 parser.add_argument("--contfromepoch", type=int,
                     help="Epoch to continue training from", default=1, required=False)
+
 args = parser.parse_args()
 
 num_epochs = args.epochs
@@ -42,6 +43,15 @@ lr = args.lr
 cont_epoch = args.contfromepoch
 
 os.environ["CUDA_VISIBLE_DEVICES"] = gpu
+
+f = open('saved_CNNs/%s/argfile.txt' % savename, "w")
+f.write("Epochs: %s" % num_epochs)
+f.write("Batch_size: %s" % batch_size)
+f.write("Model_ID: %s" % model_ID)
+f.write("Savename: %s" % savename)
+f.write("Lr: %s" % lr)
+
+f.close()
 
 random.seed(42)
 bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
@@ -94,7 +104,7 @@ optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
 if load == 'True':
     print('Loading model...')
-    model = tf.keras.models.load_model('saved_class/%s/cnn_%s_epoch_%i' % (savename, savename,cont_epoch))
+    model = tf.keras.models.load_model('saved_CNNs/%s/cnn_%s_epoch_%i' % (savename, savename,cont_epoch))
     cont_epoch = cont_epoch
     train_loss_results = np.load('saved_CNNs/%s/cnn_%s_train_loss.npy' % (savename, savename))
     val_loss_results = np.load('saved_CNNs/%s/cnn_%s_val_loss.npy' % (savename, savename))
@@ -121,25 +131,19 @@ for epoch in tqdm(range(cont_epoch, num_epochs), total = num_epochs):
         loss_value, grads = grad(model, x, y)
         optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
-        epoch_train_loss_mean.append(loss_value)
+        epoch_train_loss_mean = np.append(epoch_train_loss_mean, loss_value)
         y_hat =  model(x, training=True)
-        #epoch_train_accuracy.update_state(y_true = y, y_pred = y_hat)
     train_loss_results.append(np.mean(epoch_train_loss_mean))
-    #train_accuracy_results.append(epoch_train_accuracy.result().numpy())
 
     for val_x, val_y in val_combined_dataset_batch:
         val_x = tf.reshape(val_x, [-1, 160, 160, 1])
         val_y = tf.cast(val_y, tf.float32)
 
         logits = model(val_x, training=False)
-        epoch_val_loss_mean.append(bce(val_y, logits))
+        epoch_val_loss_mean = np.append(epoch_val_loss_mean, bce(val_y, logits))
         y_hat = tf.cast(logits, tf.uint64)
-        #epoch_val_accuracy.update_state(y_true = val_y, y_pred = y_hat)
-
-    #print("val set accuracy: {:.3%}".format(epoch_val_accuracy.result()))
 
     val_loss_results.append(np.mean(epoch_val_loss_mean))
-    #val_accuracy_results.append(epoch_val_accuracy.result().numpy())
 
     if epoch % 2 == 0:
         print("Epoch {:03d}: Train loss: {:.10f} Validation loss: {:.10f}".format(epoch, np.mean(epoch_train_loss_mean), np.mean(epoch_val_loss_mean)))

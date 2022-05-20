@@ -139,4 +139,11 @@ def split(img):
     split_img = tf.image.extract_patches(images=img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1],rates=[1, 1, 1, 1], padding='VALID')
     return split_img.numpy().reshape(17 * 24, 160 * 160)
 
+## split image into patches
+def split_numpy(img):
+    img = img.reshape(1, 2720, 3840, 1)
+    img = tf.convert_to_tensor(img, np.float32)
+    split_img = tf.image.extract_patches(images=img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1],rates=[1, 1, 1, 1], padding='VALID')
+    return split_img.numpy().reshape(17 * 24, 160 * 160)
+
 

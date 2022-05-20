@@ -5,6 +5,7 @@ from tqdm import tqdm
 from sklearn.metrics import confusion_matrix, log_loss
 from old_codes.autoencoders import *
 import random, argparse
+import matplotlib.pyplot as plt
 random.seed(42)
 
 tf.keras.backend.clear_session()
@@ -42,24 +43,40 @@ cont_epoch = args.contfromepoch
 
 os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
+try:
+    os.makedirs('saved_CNNs/%s' % savename)
+except FileExistsError:
+    pass
+
+f = open('saved_CNNs/%s/argfile.txt' % savename, "w")
+f.write("   Epochs: %s" % epochs)
+f.write("   Batch_size: %s" % batch_size)
+f.write("   Model_ID: %s" % model_ID)
+f.write("   Savename: %s" % savename)
+f.write("   Lr: %s" % lr)
+
+f.close()
+
 base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
 dir_det = 'DET/'
 images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 
 if load == 'True':
     print('Loading model...')
-    model = tf.keras.models.load_model('saved_class/%s/cnn_%s_epoch_%i' % (savename, savename,cont_epoch))
-    testing_scores = np.load('losses/%s/test_loss_%s.npy' % (savename, savename))
-    testing_scores = list(testing_scores)
-    training_scores = np.load('losses/%s/train_loss_%s.npy' % (savename, savename))
+    model = tf.keras.models.load_model('saved_CNNs/%s/cnn_%s_epoch_%i' % (savename, savename,cont_epoch))
+    val_scores = np.load('saved_CNNs/%s/cnn_%s_test_loss.npy' % (savename, savename))
+    val_scores = list(val_scores)
+    training_scores = np.load('saved_CNNs/%s/cnn_%s_train_loss.npy' % (savename, savename))
     training_scores = list(training_scores)
 
 else:
     cont_epoch = 1
-    training_scores, testing_scores = list(), list()
+    training_scores, val_scores = list(), list()
     from CNNs import *
-    if model_ID == 'model_works_newdatasplit4':
-        model = model_works_newdatasplit4
+    if model_ID == 'model_tf':
+        model = model_tf
+    if model_ID == 'model_tf2':
+        model = model_tf2
 
 print(model.summary())
 
@@ -67,26 +84,29 @@ optimizer = tf.keras.optimizers.Adam(lr)
 model.compile(optimizer = optimizer, loss = 'binary_crossentropy', metrics = ['binary_crossentropy'])
 
 # which dataset to use
-name = '4'
+name = '19'
 
-train_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_%s.npy' % name)
-train_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_%s.npy' % name)
+train_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_img_list_aug_%s.npy' % name)
+train_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'train_lbl_list_aug_%s.npy' % name)
 
-test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_img_list_%s.npy' % name)
-test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_lbl_list_%s.npy' % name)
+val_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/' + 'val_img_list_%s.npy' % name)
+val_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/' + 'val_lbl_list_%s.npy' % name)
 
 print('max of training data', np.max(train_img_list))
-print('max of test data', np.max(test_img_list))
+print('max of validation data', np.max(val_img_list))
 
 print(np.min(train_img_list))
-print(np.min(test_img_list))
+print(np.min(val_img_list))
 
 from sklearn.utils import shuffle
 
 print('Train shape', len(train_img_list), len(train_lbl_list))
+print('Validation shape', len(val_img_list), len(val_lbl_list))
 
 batches = np.floor(len(train_img_list)/batch_size)
 cut = int(np.mod(len(train_img_list), batches))
+
+class_weights = {0: 1., 1: 40.}
 
 for epoch in range(cont_epoch, epochs):
     print("\nStart of epoch %d" % (epoch,))
@@ -95,40 +115,40 @@ for epoch in range(cont_epoch, epochs):
     train_img_list, train_lbl_list = shuffle(train_img_list, train_lbl_list)
     train_img_list_cut = train_img_list[:-cut]
     train_lbl_list_cut = train_lbl_list[:-cut]
-    #MTN1 -12 and 50
-    train_img_batches =  np.split(train_img_list_cut, batches, axis=0)
+
+    train_img_batches = np.split(train_img_list_cut, batches, axis=0)
     train_lbl_batches = np.split(train_lbl_list_cut, batches, axis=0)
     print(np.array(train_img_batches).shape)
     for x_batch, y_batch in tqdm(zip(train_img_batches, train_lbl_batches), total=len(train_lbl_batches)):
-        weights = dict(zip([0, 1], [1, 4]))
-        model.fit(x_batch, y_batch, class_weight = weights, verbose = 0)
+        model.fit(x_batch, y_batch, class_weight = class_weights, verbose = 0)
         train_loss_batch = log_loss(y_batch, model.predict(x_batch).astype("float64"), labels = [0,1])
         train_scores_epoch.append(train_loss_batch)
         training_scores.append(train_loss_batch)
     print('Training loss: ', np.mean(train_scores_epoch))
-    try:
-        os.makedirs('saved_class/%s' % savename)
-    except FileExistsError:
-        pass
-    model_saveto = 'saved_class/%s/cnn_%s_epoch_%i' % (savename, savename, epoch)
+
+    model_saveto = 'saved_CNNs/%s/cnn_%s_epoch_%i' % (savename, savename, epoch)
     model.save(model_saveto)
     print('Model checkpoint saved to ', model_saveto)
 
     print('\nStarting testing:')
 
-    test_pred = model.predict(test_img_list)
-    test_loss = log_loss(test_lbl_list, test_pred.astype("float64"))
-    testing_scores.append(test_loss)
-    print('Testing score: ', test_loss)
-    print(test_lbl_list[:6])
-    print(test_pred[:6])
+    val_pred = model.predict(val_img_list)
+    val_loss = log_loss(val_lbl_list, val_pred.astype("float64"))
+    val_scores.append(val_loss)
+    print('Validation score: ', val_loss)
+    print(val_lbl_list[:6])
+    print(val_pred[:6].flatten())
 
-    tn, fp, fn, tp = confusion_matrix(test_lbl_list, np.round(test_pred)).ravel()
-    print('Test tn, fp, fn, tp:  ', tn, fp, fn, tp)
-    try:
-        os.makedirs('losses/%s' % savename)
-    except FileExistsError:
-        pass
-    np.save('losses/%s/test_loss_%s.npy' % (savename, savename), testing_scores)
-    np.save('losses/%s/train_loss_%s.npy' % (savename, savename), training_scores)
-    print('Model test and train losses saved to ','losses/%s/' % savename)
+    tn, fp, fn, tp = confusion_matrix(val_lbl_list, np.round(val_pred)).ravel()
+    print('Validation tn, fp, fn, tp:  ', tn, fp, fn, tp)
+
+    np.save('saved_CNNs/%s/cnn_%s_test_loss.npy' % (savename, savename), val_scores)
+    np.save('saved_CNNs/%s/cnn_%s_train_loss.npy' % (savename, savename), training_scores)
+    print('Model validation and train losses saved to ', 'saved_CNNs/%s/' % savename)
+
+    plt.plot(np.arange(0, len(val_scores), (len(val_scores) / len(training_scores))), training_scores, label='Train loss')
+    plt.plot(np.arange(0, len(val_scores), 1), val_scores, label='Validation loss')
+    plt.legend()
+    plt.grid()
+    plt.savefig('saved_CNNs/%s/loss_plot.png' % (savename))
+    plt.show()
