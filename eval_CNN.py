@@ -51,7 +51,7 @@ def rounding_thresh(input, thresh):
     rounded = np.round(input - thresh + 0.5)
     return rounded
 
-savename = 'more_normal_notf'
+savename = 'more_normal_notf_1024_40'
 cont_epoch = 76
 
 base_dir = 'db/'
