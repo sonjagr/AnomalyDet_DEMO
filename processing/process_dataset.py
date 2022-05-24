@@ -43,7 +43,6 @@ X_train_normal_list, X_test_normal_list = train_test_split(normal_files.values, 
 X_train_anomalous_list, X_test_anomalous_list, Y_train_anomalous_list, Y_test_anomalous_list = train_test_split(anomalous_files.values, anomalous_labels.crop_lbls.values, test_size=0.2, shuffle=True, random_state=1)
 
 base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
-#base_dir = 'db/'
 dir_ae = "AE/"
 dir_det = "DET/"
 dirs_ae = os.listdir(base_dir + dir_ae)

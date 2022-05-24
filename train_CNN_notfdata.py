@@ -77,9 +77,14 @@ else:
         model = model_tf
     if model_ID == 'model_tf2':
         model = model_tf2
+    if model_ID == 'model_simple':
+        model = model_simple
+    if model_ID == 'model_simple2':
+        model = model_simple2
 
 print(model.summary())
 
+lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=1e-2,decay_steps=10000,decay_rate=0.9)
 optimizer = tf.keras.optimizers.Adam(lr)
 model.compile(optimizer = optimizer, loss = 'binary_crossentropy', metrics = ['binary_crossentropy'])
 
@@ -104,9 +109,9 @@ print('Train shape', len(train_img_list), len(train_lbl_list))
 print('Validation shape', len(val_img_list), len(val_lbl_list))
 
 batches = np.floor(len(train_img_list)/batch_size)
-cut = int(np.mod(len(train_img_list), batches))
+cut = int(np.floor(np.mod(len(train_img_list), batches)))
 
-class_weights = {0: 1., 1: 40.}
+class_weights = {0: 1., 1: 20.}
 
 for epoch in range(cont_epoch, epochs):
     print("\nStart of epoch %d" % (epoch,))
@@ -150,5 +155,6 @@ for epoch in range(cont_epoch, epochs):
     plt.plot(np.arange(0, len(val_scores), 1), val_scores, label='Validation loss')
     plt.legend()
     plt.grid()
+    plt.title(str(savename))
     plt.savefig('saved_CNNs/%s/loss_plot.png' % (savename))
     plt.show()

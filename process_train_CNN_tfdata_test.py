@@ -44,16 +44,19 @@ cont_epoch = args.contfromepoch
 if gpu is not 0:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
-'''
+try:
+    os.makedirs('saved_CNNs/%s' % savename)
+except FileExistsError:
+    pass
+
 f = open('saved_CNNs/%s/argfile.txt' % savename, "w")
 f.write("Epochs: %s" % num_epochs)
 f.write("Batch_size: %s" % batch_size)
 f.write("Model_ID: %s" % model_ID)
 f.write("Savename: %s" % savename)
 f.write("Lr: %s" % lr)
-
 f.close()
-'''
+
 random.seed(42)
 bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 
@@ -143,7 +146,7 @@ def process_crop_encode(image, label):
     return image,label
 
 @tf.function
-def rotate(image, label, seed):
+def rotate(image, label):
     image = tf.reshape(image, [1, 160, 160])
     rots = tf.random.uniform([], minval=1, maxval=3, dtype=tf.int32)
     rot = tf.image.rot90(image, k=rots)
@@ -169,8 +172,8 @@ val_ds = val_ds.map(process_crop_encode)
 train_ds = train_ds.flat_map(patch_images).unbatch()
 val_ds = val_ds.flat_map(patch_images).unbatch()
 
-train_ds = tf.data.Dataset.zip((train_ds, (counter, counter)))
-train_ds = train_ds.map(augment)
+train_ds_rotated = train_ds.filter(lambda x, y: y == 1.).map(rotate)
+train_ds = train_ds.concatenate(train_ds_rotated)
 
 train_ds = train_ds.map(format)
 val_ds = val_ds.map(format)
@@ -178,11 +181,17 @@ val_ds = val_ds.map(format)
 #train_dataset_len = ds_length(train_ds)
 #val_dataset_len = ds_length(val_ds)
 
-train_ds_batch = train_ds.shuffle(buffer_size=321504, reshuffle_each_iteration = True).batch(batch_size=batch_size, drop_remainder = True)
-val_ds_batch = val_ds.batch(batch_size=1)
-
 train_ds_anomaly = train_ds.filter(lambda x, y: y == 1.)
 train_ds_normal = train_ds.filter(lambda x, y: y == 0.)
+
+normal, anomalous = len(list(train_ds_normal)), len(list(train_ds_anomaly))
+anomaly_weight = normal/anomalous
+
+print('Number of normal, anomalous samples: ', normal, anomalous)
+print('Anomaly weight: ', anomaly_weight)
+
+train_ds_batch = train_ds.shuffle(buffer_size=324000, reshuffle_each_iteration = True).batch(batch_size=batch_size, drop_remainder = True)
+val_ds_batch = val_ds.batch(batch_size=batch_size)
 
 def plot_examples(ds):
     for x, y in ds:
@@ -211,6 +220,8 @@ else:
         model = model_tf
     if model_ID == 'model_tf2':
         model = model_tf2
+    if model_ID == 'model_tf3':
+        model = model_tf3
     if model_ID == 'model_simple':
         model = model_simple
 
@@ -232,7 +243,7 @@ model.compile(optimizer = optimizer, loss= tf.keras.losses.BinaryCrossentropy(fr
 #len_train = len(list(train_ds_batch))
 #print('Length of training dataset: ', len_train)
 
-class_weight = {0: 1., 1: 200.}
+class_weight = {0: 1., 1: anomaly_weight}
 
 checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
     filepath='saved_CNNs/%s/cnn_%s' % (savename, savename),
@@ -245,7 +256,7 @@ filename='saved_CNNs/%s/history_log.csv' % savename
 history_logger=tf.keras.callbacks.CSVLogger(filename, separator=",", append=True)
 
 print('Starting training:')
-history = model.fit(train_ds_batch, batch_size = batch_size, epochs = num_epochs, validation_data = val_ds, class_weight = class_weight, callbacks = [checkpoint_callback, history_logger])
+history = model.fit(train_ds_batch, batch_size = batch_size, epochs = num_epochs, validation_data = val_ds_batch, class_weight = class_weight, callbacks = [checkpoint_callback, history_logger])
 print('Training finished, plotting...')
 
 plot_metrics(history)

@@ -9,7 +9,7 @@ from sklearn import metrics
 random.seed(42)
 from sklearn.metrics import confusion_matrix, log_loss
 tf.keras.backend.clear_session()
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 def plot_roc_curve(fpr1, tpr1, auc1):
     plt.plot(fpr1, tpr1, color = 'C1', label = 'CNN, AUC = '+str(round(auc1, 2)))
@@ -21,6 +21,22 @@ def plot_roc_curve(fpr1, tpr1, auc1):
     plt.grid()
     plt.legend(loc = 'lower right', fontsize = 14)
     plt.tight_layout()
+    plt.show()
+
+def plot_losses(train_loss, val_loss):
+    plt.figure(1, figsize=(8, 5))
+    plt.plot(np.arange(1,len(val_loss)+1, len(val_loss)/len(train_loss)), train_loss, label = 'Training')
+    plt.plot(np.arange(1,len(val_loss)+1), val_loss, label = 'Validation')
+    plt.plot([160,160,160],[0,0.5 ,0.73], color = 'red', linestyle = '--', linewidth = 2)
+    plt.grid()
+    #plt.xlim(0,200)
+    plt.ylim(0,np.max(val_loss))
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.legend(fontsize = 14)
+    plt.xlabel('Epoch', fontsize = 14)
+    plt.ylabel('Binary cross-entropy', fontsize = 14)
+    plt.tight_layout()
+    plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/cnn_trainin.png', dpi = 600)
     plt.show()
 
 def plot_examples(test_pred_plot, test_true_plot, test_img_plot, saveas):
@@ -52,7 +68,7 @@ def rounding_thresh(input, thresh):
     return rounded
 
 savename = 'more_normal_notf_1024_40'
-cont_epoch = 76
+cont_epoch = 140
 
 base_dir = 'db/'
 dir_det = 'DET/'
@@ -66,12 +82,16 @@ val_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'val_lbl
 test_img_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'test_img_list_%i.npy' % MTN)
 test_lbl_list = np.load('/data/HGC_Si_scratch_detection_data/processed/'+'test_lbl_list_%i.npy' % MTN)
 
-test_loss = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_test_loss.npy' % (savename, savename))
+validation_loss = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_test_loss.npy' % (savename, savename))
 train_loss = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_train_loss.npy' % (savename, savename))
 
 model = tf.keras.models.load_model('saved_CNNs/%s/cnn_%s_epoch_%i' % (savename,savename,cont_epoch))
 
+print(model.summary())
+
 print('Testing data shape: ', len(test_img_list), len(test_lbl_list))
+
+plot_losses(train_loss, validation_loss)
 
 train_pred = model.predict(train_img_list).flatten()
 val_pred = model.predict(val_img_list).flatten()

@@ -28,7 +28,7 @@ def dyn_weighted_bincrossentropy(true, pred):
     weighted_bin_crossentropy = weights * bin_crossentropy
     return tf.keras.backend.mean(weighted_bin_crossentropy)
 
-def weighted_bincrossentropy(true, pred, weight_zero=1.0, weight_one=0.1):
+def weighted_bincrossentropy(true, pred, weight_zero=1.0, weight_one=20.):
     bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
     bin_crossentropy = bce(true, pred)
 
