@@ -2,8 +2,6 @@ import numpy as np
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from tqdm import tqdm
-import cv2
-from common import *
 from helpers.dataset_helpers import create_dataset
 from old_codes.autoencoders import *
 import matplotlib.pyplot as plt
@@ -112,7 +110,7 @@ else:
     cont_epoch = 0
     train_loss_results, val_loss_results = [], []
     train_accuracy_results, val_accuracy_results = [], []
-    from CNNs import *
+    from tf_CNN.CNNs import *
     if model_ID == 'model_tf':
         model = model_tf
     if model_ID == 'model_simple':
