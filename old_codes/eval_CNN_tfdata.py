@@ -75,7 +75,7 @@ epoch = 14
 model_loc = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%i' % (savename, savename, epoch)
 model = tf.keras.models.load_model(model_loc)
 
-base_dir = 'db/'
+base_dir = '../db/'
 dir_det = 'DET/'
 
 ae = AutoEncoder()
