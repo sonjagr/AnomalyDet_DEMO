@@ -1,13 +1,10 @@
 import numpy as np
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-from tqdm import tqdm
-import cv2
-from common import *
 from helpers.dataset_helpers import create_dataset
 from old_codes.autoencoders import *
 import matplotlib.pyplot as plt
-import random, time, argparse, pickle
+import random, time, argparse
 import tensorflow as tf
 
 tf.keras.backend.clear_session()
@@ -96,26 +93,32 @@ train_ds = tf.data.Dataset.zip((train_imgs, train_lbls))
 val_ds = tf.data.Dataset.zip((val_imgs, val_lbls))
 
 def plot_metrics(history):
-  colors = ['blue','red']
-  metrics = ['loss', 'prc', 'precision', 'recall']
-  for n, metric in enumerate(metrics):
-    name = metric.replace("_"," ").capitalize()
-    plt.subplot(2,2,n+1)
-    plt.plot(history.epoch, history.history[metric], color=colors[0], label='Train')
-    plt.plot(history.epoch, history.history['val_'+metric],
-             color=colors[1], linestyle="--", label='Val')
-    plt.xlabel('Epoch')
-    plt.ylabel(name)
-    if metric == 'loss':
-      plt.ylim([0, plt.ylim()[1]])
-    elif metric == 'auc':
-      plt.ylim([0.8,1])
-    else:
-      plt.ylim([0,1])
-    plt.legend()
-  plt.tight_layout()
-  plt.savefig('saved_CNNs/%s/training.png' % savename, dpi =600)
-  plt.show()
+    colors = ['blue','red']
+    metrics = ['loss', 'prc', 'precision', 'recall']
+    for n, metric in enumerate(metrics):
+        name = metric.replace("_"," ").capitalize()
+        plt.subplot(2,2,n+1)
+        plt.plot(history.epoch, history.history[metric], color=colors[0], label='Train')
+        plt.plot(history.epoch, history.history['val_'+metric], color=colors[1], linestyle="--", label='Val')
+        plt.xlabel('Epoch')
+        plt.ylabel(name)
+        if metric == 'loss':
+            plt.ylim([0, plt.ylim()[1]])
+        elif metric == 'auc':
+            plt.ylim([0.8,1])
+        else:
+            plt.ylim([0,1])
+        plt.grid()
+        plt.legend()
+    plt.tight_layout()
+    plt.savefig('saved_CNNs/%s/training.png' % savename, dpi = 600)
+    plt.show()
+
+def plot_examples(ds):
+    for x, y in ds:
+        plt.imshow(x)
+        plt.title(str(y))
+        plt.show()
 
 @tf.function
 def crop(img, lbl):
@@ -152,6 +155,12 @@ def rotate(image, label):
     rot = tf.image.rot90(image, k=rots)
     return tf.reshape(rot, [-1]), label
 
+## change brightness of patch
+def change_bright(image, label):
+    delta = random.choice([-0.2, 0.2, 0.01])
+    image = tf.image.adjust_brightness(image, delta)
+    return image, label
+
 @tf.function
 def augment(image_label, seed):
     image, label = image_label
@@ -173,31 +182,30 @@ train_ds = train_ds.flat_map(patch_images).unbatch()
 val_ds = val_ds.flat_map(patch_images).unbatch()
 
 train_ds_rotated = train_ds.filter(lambda x, y: y == 1.).map(rotate)
+
+train_ds_rotated_bright = train_ds_rotated.map(change_bright)
+train_ds_bright = train_ds.filter(lambda x, y: y == 1.).map(change_bright)
+
 train_ds = train_ds.concatenate(train_ds_rotated)
+train_ds = train_ds.concatenate(train_ds_rotated_bright)
+train_ds = train_ds.concatenate(train_ds_bright)
 
 train_ds = train_ds.map(format)
 val_ds = val_ds.map(format)
 
-#train_dataset_len = ds_length(train_ds)
-#val_dataset_len = ds_length(val_ds)
-
 train_ds_anomaly = train_ds.filter(lambda x, y: y == 1.)
 train_ds_normal = train_ds.filter(lambda x, y: y == 0.)
 
-normal, anomalous = len(list(train_ds_normal)), len(list(train_ds_anomaly))
-anomaly_weight = normal/anomalous
+#normal, anomalous = len(list(train_ds_normal)), len(list(train_ds_anomaly))
+#anomaly_weight = normal/anomalous
 
-print('Number of normal, anomalous samples: ', normal, anomalous)
-print('Anomaly weight: ', anomaly_weight)
+#print('Number of normal, anomalous samples: ', normal, anomalous)
+#print('Anomaly weight: ', anomaly_weight)
 
-train_ds_batch = train_ds.shuffle(buffer_size=324000, reshuffle_each_iteration = True).batch(batch_size=batch_size, drop_remainder = True)
+anomaly_weight = 50.
+
+train_ds_batch = train_ds.shuffle(buffer_size=326313, reshuffle_each_iteration = True).batch(batch_size=batch_size, drop_remainder = True)
 val_ds_batch = val_ds.batch(batch_size=batch_size)
-
-def plot_examples(ds):
-    for x, y in ds:
-        plt.imshow(x)
-        plt.title(str(y))
-        plt.show()
 
 #plot_examples(train_ds_anomaly.shuffle(100).take(20))
 #plot_examples(train_ds_normal.shuffle(100).take(20))
@@ -213,7 +221,7 @@ optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
 if load == 'True':
     print('Loading model...')
-    model = tf.keras.models.load_model('saved_CNNs/%s/cnn_%s' % (savename, savename))
+    model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s' % (savename, savename))
 else:
     from CNNs import *
     if model_ID == 'model_tf':
@@ -234,16 +242,13 @@ METRICS = [
       tf.keras.metrics.Precision(name='precision'),
       tf.keras.metrics.Recall(name='recall'),
       tf.keras.metrics.AUC(name='auc'),
-      tf.keras.metrics.AUC(name='prc', curve='PR'), # precision-recall curve
+      tf.keras.metrics.AUC(name='prc', curve='PR'),
 ]
 
 print(model.summary())
 model.compile(optimizer = optimizer, loss= tf.keras.losses.BinaryCrossentropy(from_logits=False), metrics=METRICS)
 
-#len_train = len(list(train_ds_batch))
-#print('Length of training dataset: ', len_train)
-
-class_weight = {0: 1., 1: anomaly_weight}
+class_weights = {0: 1., 1: anomaly_weight}
 
 checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
     filepath='saved_CNNs/%s/cnn_%s' % (savename, savename),
@@ -252,15 +257,13 @@ checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
     mode='min',
     save_best_only=False)
 
-filename='saved_CNNs/%s/history_log.csv' % savename
-history_logger=tf.keras.callbacks.CSVLogger(filename, separator=",", append=True)
+filename = 'saved_CNNs/%s/history_log.csv' % savename
+history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=True)
 
 print('Starting training:')
-history = model.fit(train_ds_batch, batch_size = batch_size, epochs = num_epochs, validation_data = val_ds_batch, class_weight = class_weight, callbacks = [checkpoint_callback, history_logger])
+history = model.fit(train_ds_batch, batch_size = batch_size, epochs = num_epochs, validation_data = val_ds_batch, class_weight = class_weights, callbacks = [checkpoint_callback, history_logger])
 print('Training finished, plotting...')
 
 plot_metrics(history)
 
-#train_pred = model.predict(train_images, batch_size=BATCH_SIZE)
-#test_pred = model.predict(test_images, batch_size=BATCH_SIZE)
 
