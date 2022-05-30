@@ -18,6 +18,12 @@ def read_npy_file(item):
     data = np.expand_dims(data, axis=2)
     return data.astype(np.float32)
 
+def tf_read_npy_file(item):
+  im_shape = item.shape
+  [item] = tf.py_function(read_npy_file, [item], [tf.float32])
+  item.set_shape(im_shape)
+  return [item]
+
 ## create a general dataset
 def create_dataset(file_list, _shuffle=False):
     dataset = tf.data.Dataset.from_tensor_slices(file_list)
@@ -28,11 +34,14 @@ def create_dataset(file_list, _shuffle=False):
 ## creates a training dataset for the CNN
 def create_cnn_dataset(file_list, label_list, _shuffle=False):
     imgs = tf.data.Dataset.from_tensor_slices(file_list)
-    imgs = imgs.map(lambda x: tuple(tf.py_function(read_npy_file, [x], [tf.float32, ])))
-    labels = tf.data.Dataset.from_tensor_slices(label_list)
-    dataset = tf.data.Dataset.zip((imgs, labels))
+    lbls = tf.data.Dataset.from_tensor_slices(label_list)
+    dataset = tf.data.Dataset.zip((imgs, lbls))
     if _shuffle:
-        dataset.shuffle(len(file_list), reshuffle_each_iteration=True)
+        dataset.shuffle(len(file_list), seed = 42, reshuffle_each_iteration=True)
+    images = dataset.map(lambda x, y:x)
+    labels = dataset.map(lambda x, y: y)
+    images = images.map(lambda item: tuple(tf.py_function(read_npy_file, [item], [tf.float32,])))
+    dataset = tf.data.Dataset.zip((images, labels))
     return dataset
 
 ## convert box coordinates to labels

@@ -49,7 +49,6 @@ class AutoEncoder(tf.keras.Model):
         )
         print(self.decoder.summary())
 
-
     def initialize_network_TQ3_DO(self):
         self.encoder = tf.keras.Sequential(
             [

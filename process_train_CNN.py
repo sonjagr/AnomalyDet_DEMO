@@ -1,7 +1,7 @@
 import numpy as np
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-from helpers.dataset_helpers import create_dataset
+from helpers.dataset_helpers import create_cnn_dataset
 from old_codes.autoencoders import *
 import matplotlib.pyplot as plt
 import random, time, argparse
@@ -38,7 +38,7 @@ load = args.load
 lr = args.lr
 cont_epoch = args.contfromepoch
 
-if gpu is not 0:
+if gpu != 0:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
 try:
@@ -83,14 +83,9 @@ print('Loaded number of train, val samples: ', N_det_train, N_det_val)
 print('All loaded. Starting processing...')
 time1 = time.time()
 
-train_imgs = create_dataset(X_train_det_list)
-train_lbls = tf.data.Dataset.from_tensor_slices(Y_train_det_list)
+train_ds = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=True)
 
-val_imgs = create_dataset(X_val_det_list)
-val_lbls = tf.data.Dataset.from_tensor_slices(Y_val_det_list)
-
-train_ds = tf.data.Dataset.zip((train_imgs, train_lbls))
-val_ds = tf.data.Dataset.zip((val_imgs, val_lbls))
+val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list, _shuffle=True)
 
 def plot_metrics(history):
     colors = ['blue','red']
@@ -186,15 +181,18 @@ train_ds_rotated = train_ds.filter(lambda x, y: y == 1.).map(rotate)
 train_ds_rotated_bright = train_ds_rotated.map(change_bright)
 train_ds_bright = train_ds.filter(lambda x, y: y == 1.).map(change_bright)
 
-train_ds = train_ds.concatenate(train_ds_rotated)
-train_ds = train_ds.concatenate(train_ds_rotated_bright)
-train_ds = train_ds.concatenate(train_ds_bright)
+#train_ds = train_ds.concatenate(train_ds_rotated)
+train_ds_with_rot = tf.data.experimental.sample_from_datasets([train_ds,train_ds_rotated], seed=42)
+#train_ds = train_ds.concatenate(train_ds_rotated_bright)
+train_ds_with_rot_bright = tf.data.experimental.sample_from_datasets([train_ds_with_rot,train_ds_rotated_bright], seed=42)
+#train_ds = train_ds.concatenate(train_ds_bright)
+train_ds_final = tf.data.experimental.sample_from_datasets([train_ds_with_rot_bright,train_ds_bright], seed=42)
 
-train_ds = train_ds.map(format)
+train_ds_final = train_ds_final.map(format)
 val_ds = val_ds.map(format)
 
-train_ds_anomaly = train_ds.filter(lambda x, y: y == 1.)
-train_ds_normal = train_ds.filter(lambda x, y: y == 0.)
+train_ds_anomaly = train_ds_final.filter(lambda x, y: y == 1.)
+train_ds_normal = train_ds_final.filter(lambda x, y: y == 0.)
 
 #normal, anomalous = len(list(train_ds_normal)), len(list(train_ds_anomaly))
 #anomaly_weight = normal/anomalous
@@ -204,7 +202,7 @@ train_ds_normal = train_ds.filter(lambda x, y: y == 0.)
 
 anomaly_weight = 50.
 
-train_ds_batch = train_ds.shuffle(buffer_size=326313, reshuffle_each_iteration = True).batch(batch_size=batch_size, drop_remainder = True)
+train_ds_batch = train_ds_final.batch(batch_size=batch_size, drop_remainder = True)
 val_ds_batch = val_ds.batch(batch_size=batch_size)
 
 #plot_examples(train_ds_anomaly.shuffle(100).take(20))
@@ -245,6 +243,7 @@ METRICS = [
       tf.keras.metrics.AUC(name='prc', curve='PR'),
 ]
 
+
 print(model.summary())
 model.compile(optimizer = optimizer, loss= tf.keras.losses.BinaryCrossentropy(from_logits=False), metrics=METRICS)
 
@@ -258,10 +257,18 @@ checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
     save_best_only=False)
 
 filename = 'saved_CNNs/%s/history_log.csv' % savename
-history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=True)
+history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=load)
+
+def scheduler(epoch, lr):
+  if epoch < 50:
+    return lr
+  else:
+    return lr * tf.math.exp(-0.01)
+
+lr_schedule = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
 print('Starting training:')
-history = model.fit(train_ds_batch, batch_size = batch_size, epochs = num_epochs, validation_data = val_ds_batch, class_weight = class_weights, callbacks = [checkpoint_callback, history_logger])
+history = model.fit(train_ds_batch, epochs = num_epochs, validation_data = val_ds_batch, class_weight = class_weights, callbacks = [checkpoint_callback, history_logger, lr_schedule])
 print('Training finished, plotting...')
 
 plot_metrics(history)

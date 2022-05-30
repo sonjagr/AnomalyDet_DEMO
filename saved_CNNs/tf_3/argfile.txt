@@ -1,0 +1,1 @@
+Epochs: 200Batch_size: 2048Model_ID: model_simpleSavename: tf_3Lr: 0.001

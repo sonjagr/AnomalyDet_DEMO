@@ -110,7 +110,7 @@ else:
     cont_epoch = 0
     train_loss_results, val_loss_results = [], []
     train_accuracy_results, val_accuracy_results = [], []
-    from tf_CNN.CNNs import *
+    from CNNs import *
     if model_ID == 'model_tf':
         model = model_tf
     if model_ID == 'model_simple':

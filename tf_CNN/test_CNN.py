@@ -13,9 +13,8 @@ from sklearn.metrics import confusion_matrix
 
 tf.keras.backend.clear_session()
 
-
 gpu = '2'
-savename = 'tf_testing'
+savename = 'tf_testing_simple2'
 batch_size = 2048
 
 if gpu is not 0:
@@ -172,12 +171,11 @@ time2 = time.time()
 pro_time = time2-time1
 print('Processing (time {:.2f} s) finished, starting testing...'.format(pro_time))
 
-savename = 'testing_simple'
-model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_125' % (savename, savename))
+model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s' % (savename, savename))
 
-#training_history_file = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/history_log.csv' % savename
+training_history_file = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/history_log.csv' % savename
 
-#history_df = pd.read_csv(training_history_file)
+history_df = pd.read_csv(training_history_file)
 
 def plot_training(df):
     train_loss = df['loss']
@@ -190,15 +188,17 @@ def plot_training(df):
     plt.xlabel('Epoch')
     plt.ylabel('Binary Crossentropy Loss')
     plt.show()
-    print(df.head())
 
-#plot_training(history_df)
+def rounding_thresh(input, thresh):
+    rounded = np.round(input - thresh + 0.5)
+    return rounded
+p = 0.2
+
+plot_training(history_df)
 
 test_pred = model.predict(test_ds_batch, batch_size=batch_size)
 
-plot_cm(test_labels , test_pred, p = 0.5)
-
-baseline_results = model.evaluate(test_ds_batch,batch_size=batch_size, verbose=0)
+plot_cm(test_labels , test_pred, p = p)
 
 plot_roc("Test", test_labels, test_pred, linestyle='--')
 plt.legend(loc='lower right')
@@ -208,7 +208,7 @@ plot_prc("Test", test_labels, test_pred,  linestyle='--')
 plt.legend(loc='lower right')
 plt.show()
 
-for name, value in zip(model.metrics_names, baseline_results):
-    print(name, ': ', value)
+for name, metric in zip(model.metrics_names, model.metrics):
+    print(name, ': ', metric(test_labels, rounding_thresh(test_pred, p)).numpy())
 print()
 

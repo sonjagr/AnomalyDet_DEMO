@@ -72,7 +72,7 @@ if load == 'True':
 else:
     cont_epoch = 1
     training_scores, val_scores = list(), list()
-    from tf_CNN.CNNs import *
+    from CNNs import *
     if model_ID == 'model_tf':
         model = model_tf
     if model_ID == 'model_tf2':
