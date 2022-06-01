@@ -13,7 +13,7 @@ from autoencoders2 import *
 from common import *
 import matplotlib.pyplot as plt
 import os
-#os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 ae = AutoEncoder()
 
 def visualize_model(model):
@@ -25,7 +25,7 @@ def plot_ae(original, aed, i):
     import matplotlib
     f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 4))
     original_rgb = cv2.cvtColor(original.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
-    cmap = 'gray'
+    cmap = 'gray_r'
     ax1.imshow(original,cmap = cmap, vmin=0, vmax=255)
     #for i in i_a:
     #    box = box_index_to_coords(i)
@@ -40,9 +40,10 @@ def plot_ae(original, aed, i):
     ax2.tick_params(axis='both', which='both', bottom=False, left = False, labelbottom=False,labelleft=False)
 
     cmap = 'tab20c'
+    cmap = 'gray_r'
     diff = np.abs(np.subtract(aed,original))
     print(np.min(diff), np.max(diff))
-    ax3.imshow(diff,  cmap = cmap)
+    ax3.imshow(diff,  cmap = cmap, vmin = -1, vmax = 180,)
     #ax3.set_title('Difference', fontsize =16)
     ax3.tick_params(axis='both', which='both', bottom=False,left = False, labelbottom=False, labelleft=False)
 
@@ -55,7 +56,7 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
     f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 4))
     extent = (0, 3840, 0, 2720)
     original_rgb = cv2.cvtColor(original.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
-    ax1.imshow(original, extent=extent, origin="upper",  cmap = 'gray',  vmin=0, vmax=255)
+    ax1.imshow(original, extent=extent, origin="upper",  cmap = 'gray_r',  vmin=0, vmax=255)
     #ax1.set_title('Original', fontsize =16)
 
     x1, x2, y1, y2 = boxX[0], boxX[1], boxY[0], boxY[1]
@@ -63,7 +64,7 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
     ydim = (2720/(y2-y1)*times)/100
     print('xdimm', xdim)
     axins = ax1.inset_axes([lower[0], lower[1], xdim, ydim])
-    axins.imshow(original,extent=(0, 3840, 0, 2720), origin="upper", cmap = 'gray',  vmin=0, vmax=255)
+    axins.imshow(original,extent=(0, 3840, 0, 2720), origin="upper", cmap = 'gray_r',  vmin=0, vmax=255)
     axins.set_xlim(x1, x2)
     axins.set_ylim(y1, y2)
     axins.spines['top'].set_color('red')
@@ -76,12 +77,12 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
     ax1.tick_params(axis='both', which='both', bottom=False, left = False, labelbottom=False,labelleft=False)
 
     aed_rgb = cv2.cvtColor(aed.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
-    ax2.imshow(aed, extent=extent, origin="upper", cmap = 'gray',  vmin=0, vmax=255)
+    ax2.imshow(aed, extent=extent, origin="upper", cmap = 'gray_r',  vmin=0, vmax=255)
     #ax2.set_title('Auto-encoded', fontsize =16)
     ax2.tick_params(axis='both', which='both', bottom=False, left = False, labelbottom=False,labelleft=False)
 
     axins = ax2.inset_axes([lower[0], lower[1], xdim, ydim])
-    axins.imshow(aed, extent=extent, origin="upper", cmap = 'gray', vmin=0, vmax=255)
+    axins.imshow(aed, extent=extent, origin="upper", cmap = 'gray_r', vmin=0, vmax=255)
     x1, x2, y1, y2 = boxX[0], boxX[1], boxY[0], boxY[1]
     axins.set_xlim(x1, x2)
     axins.set_ylim(y1, y2)
@@ -94,13 +95,14 @@ def plot_ae_zoom(original, aed, i, boxX, boxY, lower, times):
     ax2.indicate_inset_zoom(axins, edgecolor="red")
 
     cmap = 'tab20c'
+    cmap = 'gray_r'
     diff = np.sqrt((aed-original)**2)
-    ax3.imshow(diff,cmap = cmap, extent=extent, origin="upper")
+    ax3.imshow(diff,cmap = cmap, vmin = -1,  vmax =180,extent=extent, origin="upper")
     #ax3.set_title('Difference', fontsize =16)
     ax3.tick_params(axis='both', which='both', bottom=False, left = False, labelbottom=False,labelleft=False)
 
     axins = ax3.inset_axes([lower[0], lower[1], xdim, ydim])
-    axins.imshow(diff, extent=extent, cmap = cmap,  origin="upper")
+    axins.imshow(diff, extent=extent, cmap = cmap, vmin = -1, vmax = 180, origin="upper")
     x1, x2, y1, y2 = boxX[0], boxX[1], boxY[0], boxY[1]
     axins.set_xlim(x1, x2)
     axins.set_ylim(y1, y2)
@@ -143,7 +145,7 @@ list_of_models = ['TQ3_1_cont']
 
 base_dir = 'db/'
 dir_det = 'DET/'
-images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
+#images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 images_dir_loc = 'F:/ScratchDetection/MeasurementCampaigns/'
 
 X_train_det_list = np.load(base_dir + dir_det + 'X_train_DET.npy', allow_pickle=True)
@@ -153,7 +155,8 @@ def_dataset = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=Fa
 
 
 def plot_aed_zoom(plotting_dataset, boxX, boxY, lower, times):
-    ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1/model_AE_TQ3_5_to_5_epochs')
+    #ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1/model_AE_TQ3_5_to_5_epochs')
+    ae.load('saved_class/model_AE_TQ3_500_to_500_epochs')
     p=0
     for x_plot, y_plot in plotting_dataset:
         img = x_plot
@@ -165,7 +168,7 @@ def plot_aed_zoom(plotting_dataset, boxX, boxY, lower, times):
         p = p+1
 
 def plot_aed(plotting_dataset, name):
-    #ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
+    ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
     ae.load('saved_class/model_AE_TQ3_500_to_500_epochs')
     p=0
     for x_plot, y_plot in plotting_dataset:
@@ -192,7 +195,7 @@ def classifier_scores(test_loss, train_loss):
 #classifier_scores(test_loss, train_loss)
 #comparison_plot(checkpoints_loc, list_of_models)
 
-plotting_dataset = def_dataset.shuffle(100, seed = 1).take(2)
+plotting_dataset = def_dataset.shuffle(100, seed = 1).take(5)
 plot_aed(plotting_dataset, 1)
 
 
@@ -200,22 +203,22 @@ boxX = [(3000,3600),(500,1100),(1000,1500)]
 boxY = [(0,300),(0,400),(0,400)]
 lower = [(0.55,0.3),(0.3,0.2),(0.55,0.3)]
 times = 7
-plot_aed_zoom(plotting_dataset, boxX, boxY, lower, times)
+#plot_aed_zoom(plotting_dataset, boxX, boxY, lower, times)
 
 boxX = [(3000,3500)]
 boxY = [(0,300)]
 lower = [(0.55,0.3)]
 times = 5
-plotting_dataset = def_dataset.shuffle(100, seed = 2).take(5)
+plotting_dataset = def_dataset.shuffle(100, seed = 1).take(5)
 plotting_dataset = plotting_dataset.take(1)
 plot_aed_zoom(plotting_dataset, boxX, boxY, lower, times)
-#plotting_dataset = plotting_dataset.skip(4)
+plotting_dataset = plotting_dataset.skip(4)
 boxX = [(1500,1800)]
 boxY = [(200,500)]
 lower = [(0.2,0.35)]
 times = 6
 
-#plot_aed_zoom(plotting_dataset, boxX, boxY, lower, times)
+plot_aed_zoom(plotting_dataset, boxX, boxY, lower, times)
 
 
 

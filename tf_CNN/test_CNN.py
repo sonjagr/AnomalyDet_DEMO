@@ -14,7 +14,7 @@ from sklearn.metrics import confusion_matrix
 tf.keras.backend.clear_session()
 
 gpu = '2'
-savename = 'tf_testing_simple2'
+savename = 'testing'
 batch_size = 2048
 
 if gpu is not 0:

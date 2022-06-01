@@ -4,6 +4,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from helpers.dataset_helpers import create_cnn_dataset
 from old_codes.autoencoders import *
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 import random, time, argparse
 import tensorflow as tf
 
@@ -47,12 +48,24 @@ except FileExistsError:
     pass
 
 f = open('saved_CNNs/%s/argfile.txt' % savename, "w")
-f.write("  Epochs: %s" % num_epochs)
-f.write("  Batch_size: %s" % batch_size)
-f.write("  Model_ID: %s" % model_ID)
-f.write("  Savename: %s" % savename)
-f.write("  Lr: %s" % lr)
+f.write("Epochs: %s" % num_epochs)
+f.write("Batch_size: %s" % batch_size)
+f.write("Model_ID: %s" % model_ID)
+f.write("Savename: %s" % savename)
+f.write("Lr: %s" % lr)
 f.close()
+
+METRICS = [
+      tf.keras.metrics.TruePositives(name='tp'),
+      tf.keras.metrics.FalsePositives(name='fp'),
+      tf.keras.metrics.TrueNegatives(name='tn'),
+      tf.keras.metrics.FalseNegatives(name='fn'),
+      tf.keras.metrics.BinaryAccuracy(name='accuracy'),
+      tf.keras.metrics.Precision(name='precision'),
+      tf.keras.metrics.Recall(name='recall'),
+      tf.keras.metrics.AUC(name='auc'),
+      tf.keras.metrics.AUC(name='prc', curve='PR'),
+]
 
 random.seed(42)
 bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
@@ -73,8 +86,8 @@ Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET.npy', allow_pickle=
 Y_val_det_list = np.load(base_dir + dir_det + 'Y_test_DET.npy', allow_pickle=True).tolist()
 
 N_det_val = int(len(X_val_det_list)/2)
-X_val_det_list = X_val_det_list[:int(N_det_val)]
-Y_val_det_list = Y_val_det_list[:int(N_det_val)]
+X_val_det_list = X_val_det_list[:int(N_det_val/2)]
+Y_val_det_list = Y_val_det_list[:int(N_det_val/2)]
 
 N_det_train = len(X_train_det_list)
 print('Loaded number of train, val samples: ', N_det_train, N_det_val)
@@ -187,21 +200,15 @@ val_ds = val_ds.map(format)
 train_ds_anomaly = train_ds_final.filter(lambda x, y:  y == 1.)
 train_ds_normal = train_ds_final.filter(lambda x, y: y == 0.)
 
-#normal, anomalous = len(list(train_ds_normal)), len(list(train_ds_anomalous))
-#anomaly_weight = normal/anomalous
-
-#print('Number of normal, anomalous samples: ', normal, anomalous)
-#print('Anomaly weight: ', anomaly_weight)
-
 anomaly_weight = 30.
 
 train_ds_batch = train_ds_final.batch(batch_size=batch_size, drop_remainder = True)
 val_ds_batch = val_ds.batch(batch_size=batch_size)
 
-plot_examples(train_ds.filter(lambda x, y: y == 1.).take(2))
-plot_examples(train_ds_rotated.take(2))
+#plot_examples(train_ds.filter(lambda x, y: y == 1.).take(2))
+#plot_examples(train_ds_rotated.take(2))
 ##plot_examples(train_ds_rotated_bright.take(2))
-plot_examples(train_ds_normal.take(2))
+#plot_examples(train_ds_normal.take(2))
 
 time2 = time.time()
 pro_time = time2-time1
@@ -210,10 +217,13 @@ print('Processing (time {:.2f} s) finished, starting training...'.format(pro_tim
 optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
 if load == 'True':
-    print('Loading previously trained model...')
+    cont_epoch = cont_epoch
+    print('Loading model...')
     model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, cont_epoch))
-    #model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s' % (savename, savename))
 else:
+    cont_epoch = 0
+    training_scores = []
+    val_scores = []
     from CNNs import *
     if model_ID == 'model_tf':
         model = model_tf
@@ -223,22 +233,6 @@ else:
         model = model_tf3
     if model_ID == 'model_simple':
         model = model_simple
-    if model_ID == 'model_simple2':
-        model = model_simple2
-    if model_ID == 'model_simple3':
-        model = model_simple3
-
-METRICS = [
-      tf.keras.metrics.TruePositives(name='tp'),
-      tf.keras.metrics.FalsePositives(name='fp'),
-      tf.keras.metrics.TrueNegatives(name='tn'),
-      tf.keras.metrics.FalseNegatives(name='fn'),
-      tf.keras.metrics.BinaryAccuracy(name='accuracy'),
-      tf.keras.metrics.Precision(name='precision'),
-      tf.keras.metrics.Recall(name='recall'),
-      tf.keras.metrics.AUC(name='auc'),
-      tf.keras.metrics.AUC(name='prc', curve='PR'),
-]
 
 print(model.summary())
 model.compile(optimizer = optimizer, loss= tf.keras.losses.BinaryCrossentropy(from_logits=False), metrics=METRICS)
@@ -260,9 +254,41 @@ def scheduler(epoch, lr):
 lr_schedule = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
 print('Starting training:')
-history = model.fit(train_ds_batch, epochs = num_epochs, validation_data = val_ds_batch, class_weight=class_weights, callbacks = [checkpoint_callback, history_logger, lr_schedule])
-print('Training finished, plotting...')
 
-plot_metrics(history)
+for epoch in range(cont_epoch, num_epochs):
+    print("\nStart of epoch %d" % (epoch,))
+    train_scores_epoch = []
+    b = 0
+    for x_batch, y_batch in tqdm(train_ds_batch, total = 200):
+        model.fit(x_batch, y_batch, class_weight = class_weights, callbacks=[history_logger, checkpoint_callback, lr_schedule], verbose = 0)
+        train_pred = model.predict(x_batch)
+        train_loss_batch= bce(y_batch, train_pred)
+        train_scores_epoch.append(train_loss_batch)
+        training_scores.append(train_loss_batch)
+    print('Training loss: ', np.mean(train_scores_epoch))
 
+    model_saveto = 'saved_CNNs/%s/cnn_%s_epoch_%i' % (savename, savename, epoch)
+    model.save(model_saveto)
+    print('Model checkpoint saved to ', model_saveto)
+
+    print('\nStarting testing:')
+
+    val_loss, val_metrics = model.evaluate(val_ds_batch)
+    val_scores.append(val_loss)
+    print('Validation score: ', val_loss)
+    print('Validation metrics: ', val_metrics)
+    #print(val_lbl_list[:6])
+    #print(val_pred[:6].flatten())
+
+    np.save('saved_CNNs/%s/cnn_%s_test_loss.npy' % (savename, savename), val_scores)
+    np.save('saved_CNNs/%s/cnn_%s_train_loss.npy' % (savename, savename), training_scores)
+    print('Model validation and train losses saved to ', 'saved_CNNs/%s/' % savename)
+
+    plt.plot(np.arange(0, len(val_scores), (len(val_scores) / len(training_scores))), training_scores, label='Train loss')
+    plt.plot(np.arange(0, len(val_scores), 1), val_scores, label='Validation loss')
+    plt.legend()
+    plt.grid()
+    plt.title(str(savename))
+    plt.savefig('saved_CNNs/%s/loss_plot.png' % (savename))
+    plt.show()
 
