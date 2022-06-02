@@ -73,16 +73,28 @@ Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET.npy', allow_pickle=
 Y_val_det_list = np.load(base_dir + dir_det + 'Y_test_DET.npy', allow_pickle=True).tolist()
 
 N_det_val = int(len(X_val_det_list)/2)
-X_val_det_list = X_val_det_list[:int(N_det_val)]
-Y_val_det_list = Y_val_det_list[:int(N_det_val)]
+X_val_det_list = X_val_det_list[:N_det_val]
+Y_val_det_list = Y_val_det_list[:N_det_val]
 
 N_det_train = len(X_train_det_list)
 print('Loaded number of train, val samples: ', N_det_train, N_det_val)
-print('All loaded. Starting processing...')
+print('All loaded. Starting dataset creation...')
 time1 = time.time()
 
 train_ds = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=True)
 val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list, _shuffle=True)
+
+METRICS = [
+      tf.keras.metrics.TruePositives(name='tp'),
+      tf.keras.metrics.FalsePositives(name='fp'),
+      tf.keras.metrics.TrueNegatives(name='tn'),
+      tf.keras.metrics.FalseNegatives(name='fn'),
+      tf.keras.metrics.BinaryAccuracy(name='accuracy'),
+      tf.keras.metrics.Precision(name='precision'),
+      tf.keras.metrics.Recall(name='recall'),
+      tf.keras.metrics.AUC(name='auc'),
+      tf.keras.metrics.AUC(name='prc', curve='PR'),
+]
 
 def plot_metrics(history):
     colors = ['blue','red']
@@ -142,24 +154,21 @@ def process_crop_encode(image, label):
     return image,label
 
 @tf.function
-def rotate(image, label):
+def rotate(image_label, seed):
+    image, label = image_label
     image = tf.reshape(image, [1, 160, 160])
-    rots = tf.random.uniform([], minval=1, maxval=3, seed = None, dtype=tf.int32)
+    rots = tf.random.uniform(shape=(), minval=1, maxval=4, dtype=tf.int32, seed = None)
+    print(rots)
     rot = tf.image.rot90(image, k=rots)
     return tf.reshape(rot, [160,160,1]), label
 
 ## change brightness of patch
 @tf.function
-def change_bright(image, label):
-    delta = tf.random.uniform([], minval=0.75, maxval=0.95, seed = None, dtype=tf.float32)
+def change_bright(image, label, seed):
+    #delta = tf.random.uniform([], minval=0.75, maxval=0.95, seed = None, dtype=tf.float32)
+    random.seed(seed)
+    delta = random.uniform(0.75,0.95)
     image = tf.math.multiply(image, delta)
-    return image, label
-
-@tf.function
-def augment(image_label, seed):
-    image, label = image_label
-    if label == 1.:
-        image, label = rotate(image, label, seed)
     return image, label
 
 @tf.function
@@ -168,44 +177,51 @@ def format(image, label):
     label = tf.cast(label, tf.float32)
     return image, label
 
-train_ds = train_ds.map(process_crop_encode)
-val_ds = val_ds.map(process_crop_encode)
+train_ds = train_ds.map(process_crop_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+val_ds = val_ds.map(process_crop_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
 train_ds = train_ds.flat_map(patch_images).unbatch()
 val_ds = val_ds.flat_map(patch_images).unbatch()
 
 train_ds_anomaly = train_ds.filter(lambda x, y:  y == 1.)
-train_ds_rotated = train_ds_anomaly.map(rotate)
-augmented = train_ds_anomaly.concatenate(train_ds_rotated).map(change_bright)
+train_ds_normal = train_ds.filter(lambda x, y:  y == 0.).take(64120)
 
-train_ds_anomalous = train_ds_anomaly.concatenate(augmented)
+counter = tf.data.experimental.Counter()
+train_ds_to_augment = tf.data.Dataset.zip((train_ds_anomaly, counter))
 
-train_ds_final = tf.data.experimental.sample_from_datasets([train_ds.filter(lambda x, y:  y == 0.).take(160000), train_ds_anomalous], seed = 42)
-train_ds_final = train_ds_final.map(format)
-val_ds = val_ds.map(format)
+train_ds_rotated = train_ds_anomaly.concatenate(train_ds_to_augment.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE))
+#augmented = train_ds_rotated.concatenate(train_ds_rotated.map(change_bright))
+augmented = train_ds_rotated
+
+train_ds_final = tf.data.experimental.sample_from_datasets([train_ds_normal, augmented], seed = 42)
+train_ds_final = train_ds_final.map(format, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+val_ds = val_ds.map(format, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
 train_ds_anomaly = train_ds_final.filter(lambda x, y:  y == 1.)
 train_ds_normal = train_ds_final.filter(lambda x, y: y == 0.)
 
 #normal, anomalous = len(list(train_ds_normal)), len(list(train_ds_anomalous))
 #anomaly_weight = normal/anomalous
-
 #print('Number of normal, anomalous samples: ', normal, anomalous)
 #print('Anomaly weight: ', anomaly_weight)
 
-anomaly_weight = 30.
+anomaly_weight = 64120/3206
+print('Anomaly weight: ', anomaly_weight)
+
+train_ds_final = train_ds_final.cache()
+val_ds = val_ds.cache()
 
 train_ds_batch = train_ds_final.batch(batch_size=batch_size, drop_remainder = True)
-val_ds_batch = val_ds.batch(batch_size=batch_size)
+val_ds_batch = val_ds.batch(batch_size=batch_size, drop_remainder = False)
 
-plot_examples(train_ds.filter(lambda x, y: y == 1.).take(2))
-plot_examples(train_ds_rotated.take(2))
+plot_examples(train_ds_anomaly.take(10))
+#plot_examples(train_ds_rotated.take(2))
 ##plot_examples(train_ds_rotated_bright.take(2))
-plot_examples(train_ds_normal.take(2))
+plot_examples(train_ds_normal.take(10))
 
 time2 = time.time()
 pro_time = time2-time1
-print('Processing (time {:.2f} s) finished, starting training...'.format(pro_time))
+print('Dataset (time {:.2f} s) created, starting training...'.format(pro_time))
 
 optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
@@ -213,6 +229,8 @@ if load == 'True':
     print('Loading previously trained model...')
     model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, cont_epoch))
     #model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s' % (savename, savename))
+    def scheduler(lr):
+        return lr * tf.math.exp(-0.01)
 else:
     from CNNs import *
     if model_ID == 'model_tf':
@@ -227,18 +245,11 @@ else:
         model = model_simple2
     if model_ID == 'model_simple3':
         model = model_simple3
-
-METRICS = [
-      tf.keras.metrics.TruePositives(name='tp'),
-      tf.keras.metrics.FalsePositives(name='fp'),
-      tf.keras.metrics.TrueNegatives(name='tn'),
-      tf.keras.metrics.FalseNegatives(name='fn'),
-      tf.keras.metrics.BinaryAccuracy(name='accuracy'),
-      tf.keras.metrics.Precision(name='precision'),
-      tf.keras.metrics.Recall(name='recall'),
-      tf.keras.metrics.AUC(name='auc'),
-      tf.keras.metrics.AUC(name='prc', curve='PR'),
-]
+    def scheduler(epoch, lr):
+        if epoch < 50:
+            return lr
+        else:
+            return lr * tf.math.exp(-0.01)
 
 print(model.summary())
 model.compile(optimizer = optimizer, loss= tf.keras.losses.BinaryCrossentropy(from_logits=False), metrics=METRICS)
@@ -251,16 +262,10 @@ checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=filepath,monit
 filename = 'saved_CNNs/%s/history_log.csv' % savename
 history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=load)
 
-def scheduler(epoch, lr):
-  if epoch < 50:
-    return lr
-  else:
-    return lr * tf.math.exp(-0.01)
-
 lr_schedule = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
 print('Starting training:')
-history = model.fit(train_ds_batch, epochs = num_epochs, validation_data = val_ds_batch, class_weight=class_weights, callbacks = [checkpoint_callback, history_logger, lr_schedule])
+history = model.fit(train_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), epochs = num_epochs, validation_data = val_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), class_weight=class_weights, callbacks = [checkpoint_callback, history_logger])
 print('Training finished, plotting...')
 
 plot_metrics(history)
