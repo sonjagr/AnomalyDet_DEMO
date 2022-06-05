@@ -97,6 +97,7 @@ def plot_diff(image, i):
     #plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/plots/'+savemodel+'/diff_2_img_%s.png' % i)
     plt.show()
 
+'''
 i = 0
 for x in tqdm(val_dataset.take(5), total=10):
     plt.figure(1)
@@ -124,16 +125,17 @@ for x in tqdm(val_dataset.take(5), total=10):
         plt.plot( [0, 2000, 3860], np.full(3, yline*160), linestyle = '-', color = 'white')
     plt.tick_params(axis='both', which='both', bottom=False, right=False, left=False, labelbottom=False, labelleft=False, labelright=False)
     plt.show()
+'''
 
 def mean_error(X_val_list_comb, brightness):
     i=0
     recon_error = []
     for x in tqdm(X_val_list_comb, total=50):
-        orig_img = plot_orig_image(x, i)
+        orig_img = x[0].numpy()
         orig_img = (orig_img*brightness).reshape(-1, xshape, 3840, 1)
         val_enc = ae.encode(orig_img)
         val_dec = ae.decode(val_enc)
-        dec_img = plot_image(val_dec, i)
+        dec_img = val_dec
         diff = np.sqrt((dec_img - orig_img)**2)
         recon_error = np.append(recon_error, diff)
         diff = (dec_img - orig_img)
@@ -159,3 +161,5 @@ def plot_mean_error(X_val_list_comb):
     plt.plot(mean_errors, errors_brightnesses)
     plt.grid()
     plt.show()
+
+plot_mean_error(val_dataset)

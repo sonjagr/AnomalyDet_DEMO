@@ -140,12 +140,28 @@ def encode(img, lbl, ae):
     return aed_img, lbl
 
 @tf.function
+def bright_encode(img, lbl, ae):
+    delta = tf.random.uniform([], minval=0.75, maxval=0.95, seed=None, dtype=tf.float32)
+    img = tf.math.multiply(img, delta)
+    img = tf.reshape(img, [-1, 2720, 3840, INPUT_DIM])
+    encoded_img = ae.encode(img)
+    decoded_img = ae.decode(encoded_img)
+    aed_img = tf.sqrt(tf.pow(tf.subtract(img, decoded_img), 2))
+    return aed_img, lbl
+
+@tf.function
 def patch_images(img, lbl):
     split_img = tf.image.extract_patches(images=img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1], rates=[1, 1, 1, 1], padding='VALID')
     re = tf.reshape(split_img, [17*24, 160 *160])
     lbl = tf.reshape(lbl, [17*24])
     patch_ds = tf.data.Dataset.from_tensors((re, lbl))
     return patch_ds
+
+@tf.function
+def process_crop_bright_encode(image, label):
+    image, label = crop(image, label)
+    image, label = bright_encode(image, label, ae)
+    return image,label
 
 @tf.function
 def process_crop_encode(image, label):
@@ -158,16 +174,13 @@ def rotate(image_label, seed):
     image, label = image_label
     image = tf.reshape(image, [1, 160, 160])
     rots = tf.random.uniform(shape=(), minval=1, maxval=4, dtype=tf.int32, seed = None)
-    print(rots)
     rot = tf.image.rot90(image, k=rots)
     return tf.reshape(rot, [160,160,1]), label
 
 ## change brightness of patch
 @tf.function
-def change_bright(image, label, seed):
-    #delta = tf.random.uniform([], minval=0.75, maxval=0.95, seed = None, dtype=tf.float32)
-    random.seed(seed)
-    delta = random.uniform(0.75,0.95)
+def change_bright(image, label):
+    delta = tf.random.uniform([], minval=0.75, maxval=0.95, seed = None, dtype=tf.float32)
     image = tf.math.multiply(image, delta)
     return image, label
 
@@ -177,47 +190,53 @@ def format(image, label):
     label = tf.cast(label, tf.float32)
     return image, label
 
-train_ds = train_ds.map(process_crop_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+train_ds_nob = train_ds.map(process_crop_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+train_ds_brightness = train_ds.map(process_crop_bright_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 val_ds = val_ds.map(process_crop_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-train_ds = train_ds.flat_map(patch_images).unbatch()
+train_ds = train_ds_nob.flat_map(patch_images).unbatch()
+train_ds_brightness = train_ds_brightness.flat_map(patch_images).unbatch()
+
 val_ds = val_ds.flat_map(patch_images).unbatch()
 
+nbr_of_normal = 128240
+
 train_ds_anomaly = train_ds.filter(lambda x, y:  y == 1.)
-train_ds_normal = train_ds.filter(lambda x, y:  y == 0.).take(64120)
+train_ds_brightness_anomaly = train_ds_brightness.filter(lambda x, y:  y == 1.)
+train_ds_anomaly = train_ds_anomaly.concatenate(train_ds_brightness_anomaly)
+
+train_ds_normal = train_ds.filter(lambda x, y:  y == 0.).shuffle(buffer_size=300000, reshuffle_each_iteration=False, seed=42).take(nbr_of_normal)
 
 counter = tf.data.experimental.Counter()
 train_ds_to_augment = tf.data.Dataset.zip((train_ds_anomaly, counter))
 
 train_ds_rotated = train_ds_anomaly.concatenate(train_ds_to_augment.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE))
-#augmented = train_ds_rotated.concatenate(train_ds_rotated.map(change_bright))
+
+#augmented = train_ds_rotated.concatenate(train_ds_rotated.map(change_bright, num_parallel_calls=tf.data.experimental.AUTOTUNE))
 augmented = train_ds_rotated
 
-train_ds_final = tf.data.experimental.sample_from_datasets([train_ds_normal, augmented], seed = 42)
+train_ds_final = train_ds_normal.concatenate(augmented)
 train_ds_final = train_ds_final.map(format, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 val_ds = val_ds.map(format, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
 train_ds_anomaly = train_ds_final.filter(lambda x, y:  y == 1.)
 train_ds_normal = train_ds_final.filter(lambda x, y: y == 0.)
 
-#normal, anomalous = len(list(train_ds_normal)), len(list(train_ds_anomalous))
-#anomaly_weight = normal/anomalous
-#print('Number of normal, anomalous samples: ', normal, anomalous)
-#print('Anomaly weight: ', anomaly_weight)
+normal, anomalous = len(list(train_ds_normal)), len(list(train_ds_anomaly))
+anomaly_weight = normal/anomalous
+print('Number of normal, anomalous samples: ', normal, anomalous)
 
-anomaly_weight = 64120/3206
+#anomaly_weight = (nbr_of_normal)/3206
 print('Anomaly weight: ', anomaly_weight)
 
-train_ds_final = train_ds_final.cache()
+train_ds_final = train_ds_final.cache().shuffle(buffer_size=normal+anomalous, reshuffle_each_iteration=True)
 val_ds = val_ds.cache()
 
 train_ds_batch = train_ds_final.batch(batch_size=batch_size, drop_remainder = True)
 val_ds_batch = val_ds.batch(batch_size=batch_size, drop_remainder = False)
 
-plot_examples(train_ds_anomaly.take(10))
-#plot_examples(train_ds_rotated.take(2))
-##plot_examples(train_ds_rotated_bright.take(2))
-plot_examples(train_ds_normal.take(10))
+plot_examples(train_ds_anomaly.take(2))
+plot_examples(train_ds_normal.take(2))
 
 time2 = time.time()
 pro_time = time2-time1
@@ -257,6 +276,7 @@ model.compile(optimizer = optimizer, loss= tf.keras.losses.BinaryCrossentropy(fr
 class_weights = {0: 1., 1: anomaly_weight}
 
 filepath = 'saved_CNNs/%s/cnn_%s_epoch_{epoch:02d}' % (savename, savename)
+##DO NOTNSAVE EVERY EPOCH TAKES SPACE
 checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=filepath,monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', save_freq='epoch')
 
 filename = 'saved_CNNs/%s/history_log.csv' % savename

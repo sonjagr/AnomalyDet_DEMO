@@ -162,13 +162,14 @@ def plot_aed_zoom(plotting_dataset, boxX, boxY, lower, times):
         img = x_plot
         y_plot = y_plot.numpy().reshape(17 * 24)
         img = img[0].numpy().reshape(1, 2736, 3840, 1)[:, :2720, :, :]
+        img = np.multiply(img, 0.75)
         encoded_img = ae.encode(img)
         decoded_img = ae.decode(encoded_img)
         plot_ae_zoom(img.reshape(2720, 3840), decoded_img.numpy().reshape(2720, 3840), p, boxX[p], boxY[p], lower[p], times)
         p = p+1
 
 def plot_aed(plotting_dataset, name):
-    ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
+    #ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
     ae.load('saved_class/model_AE_TQ3_500_to_500_epochs')
     p=0
     for x_plot, y_plot in plotting_dataset:
@@ -196,8 +197,7 @@ def classifier_scores(test_loss, train_loss):
 #comparison_plot(checkpoints_loc, list_of_models)
 
 plotting_dataset = def_dataset.shuffle(100, seed = 1).take(5)
-plot_aed(plotting_dataset, 1)
-
+#plot_aed(plotting_dataset, 1)
 
 boxX = [(3000,3600),(500,1100),(1000,1500)]
 boxY = [(0,300),(0,400),(0,400)]

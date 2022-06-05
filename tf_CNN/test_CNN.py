@@ -5,17 +5,18 @@ from helpers.dataset_helpers import create_dataset
 from old_codes.autoencoders import *
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve
-from sklearn import metrics
-import random, time, argparse
+import random, time
 import tensorflow as tf
 import pandas as pd
+from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
 
 tf.keras.backend.clear_session()
 
-gpu = '2'
-savename = 'testing'
-batch_size = 2048
+gpu = '1'
+savename = 'testing_modeltf_speed2'
+batch_size = 1024
+epoch = 900
 
 if gpu is not 0:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
@@ -43,22 +44,22 @@ X_test_det_list = [images_dir_loc + s for s in X_test_det_list]
 Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET.npy', allow_pickle=True).tolist()
 Y_test_det_list = np.load(base_dir + dir_det + 'Y_test_DET.npy', allow_pickle=True).tolist()
 
-N_det_test = int(len(X_test_det_list) / 2)
+N_det_test = int(len(X_test_det_list)/2)
 X_train_det_list = X_train_det_list
 Y_train_det_list = Y_train_det_list
 
-X_test_det_list = X_test_det_list[-int(N_det_test / 2):]
-Y_test_det_list = Y_test_det_list[-int(N_det_test / 2):]
+X_test_det_list = X_test_det_list[-N_det_test:-10]
+Y_test_det_list = Y_test_det_list[-N_det_test:-10]
 
 N_det_train = len(X_train_det_list)
 print('Loaded number of train, val samples: ', N_det_train, N_det_test)
 print('All loaded. Starting processing...')
 time1 = time.time()
 
-train_imgs = create_dataset(X_train_det_list)
+train_imgs = create_dataset(X_train_det_list, _shuffle=False)
 train_lbls = tf.data.Dataset.from_tensor_slices(Y_train_det_list)
 
-test_imgs = create_dataset(X_test_det_list)
+test_imgs = create_dataset(X_test_det_list, _shuffle=False)
 test_lbls = tf.data.Dataset.from_tensor_slices(Y_test_det_list)
 
 test_ds = tf.data.Dataset.zip((test_imgs, test_lbls))
@@ -155,34 +156,11 @@ def plot_prc(name, labels, predictions, **kwargs):
     ax = plt.gca()
     ax.set_aspect('equal')
 
-counter = tf.data.experimental.Counter()
-test_ds = test_ds.map(process_crop_encode)
-test_ds = test_ds.flat_map(patch_images).unbatch()
-test_ds = test_ds.map(format)
-
-test_labels = np.array(Y_test_det_list).flatten()
-
-test_ds_batch = test_ds.batch(batch_size=batch_size)
-
-#plot_examples(test_ds.filter(lambda x, y: y == 1.).shuffle(100).take(2))
-#plot_examples(test_ds.filter(lambda x, y: y == 0.).shuffle(100).take(2))
-
-time2 = time.time()
-pro_time = time2-time1
-print('Processing (time {:.2f} s) finished, starting testing...'.format(pro_time))
-
-model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s' % (savename, savename))
-
-training_history_file = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/history_log.csv' % savename
-
-history_df = pd.read_csv(training_history_file)
-
 def plot_training(df):
     train_loss = df['loss']
-    epochs = df['epoch']
     val_loss = df['val_loss']
-    plt.plot(epochs, train_loss, label = 'Training')
-    plt.plot(epochs, val_loss, label = 'Validation')
+    plt.plot(np.arange(0,len(train_loss)), train_loss, label = 'Training')
+    plt.plot(np.arange(0,len(val_loss)), val_loss, label = 'Validation')
     plt.legend()
     plt.grid()
     plt.xlabel('Epoch')
@@ -192,23 +170,51 @@ def plot_training(df):
 def rounding_thresh(input, thresh):
     rounded = np.round(input - thresh + 0.5)
     return rounded
-p = 0.2
+
+test_ds = test_ds.map(process_crop_encode)
+test_ds = test_ds.flat_map(patch_images).unbatch()
+test_ds = test_ds.map(format)
+test_ds_batch = test_ds.batch(batch_size)
+
+test_labels = np.array(Y_test_det_list).flatten()
+
+time2 = time.time()
+pro_time = time2-time1
+print('Processing (time {:.2f} s) finished, starting testing...'.format(pro_time))
+
+model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, epoch))
+
+training_history_file = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/history_log.csv' % savename
+
+history_df = pd.read_csv(training_history_file)
+
+p = 0.9
 
 plot_training(history_df)
 
-test_pred = model.predict(test_ds_batch, batch_size=batch_size)
+test_pred = model.predict(test_ds_batch)
+test_true = test_labels
 
-plot_cm(test_labels , test_pred, p = p)
+plot_cm(test_true, test_pred, p = p)
 
-plot_roc("Test", test_labels, test_pred, linestyle='--')
+cm = confusion_matrix(test_true, rounding_thresh(test_pred, p), normalize='true')
+tn, fp, fn, tp = cm.ravel()
+print('tn, fp, fn, tp: ', tn, fp, fn, tp)
+error = (fp+fn)/(tp+tn+fp+fn)
+print('Error: ', error)
+acc = 1-error
+print('Accuracy: ', acc)
+print('FPR: ', fp/(fp+tn))
+print('FNR: ', fn/(fn+tp))
+
+plot_roc("Test", test_true, test_pred, linestyle='--')
 plt.legend(loc='lower right')
 plt.show()
 
-plot_prc("Test", test_labels, test_pred,  linestyle='--')
+plot_prc("Test", test_true, test_pred,  linestyle='--')
 plt.legend(loc='lower right')
 plt.show()
 
 for name, metric in zip(model.metrics_names, model.metrics):
-    print(name, ': ', metric(test_labels, rounding_thresh(test_pred, p)).numpy())
+    print(name, ': ', metric(test_true, rounding_thresh(test_pred, p)).numpy())
 print()
-

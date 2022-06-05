@@ -38,7 +38,7 @@ def create_cnn_dataset(file_list, label_list, _shuffle=False):
     dataset = tf.data.Dataset.zip((imgs, lbls))
     if _shuffle:
         dataset.shuffle(len(file_list), seed = 42, reshuffle_each_iteration=True)
-    images = dataset.map(lambda x, y:x)
+    images = dataset.map(lambda x, y: x)
     labels = dataset.map(lambda x, y: y)
     images = images.map(lambda item: tuple(tf.py_function(read_npy_file, [item], [tf.float32,])))
     dataset = tf.data.Dataset.zip((images, labels))

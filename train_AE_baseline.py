@@ -36,11 +36,11 @@ Y_test = np.load(base_dir + dir_det + 'Y_test_DET.npy', allow_pickle=True).tolis
 N_det_val = int(len(X_test)/2)
 X_train_det_list = X_train_det_list
 Y_train_det_list = Y_train_det_list
-X_val_det_list = X_test[:int(N_det_val/2)]
-Y_val_det_list = Y_test[:int(N_det_val/2)]
+X_val_det_list = X_test[:N_det_val]
+Y_val_det_list = Y_test[:N_det_val]
 
-X_test_det_list = X_test
-Y_test_det_list = Y_test
+X_test_det_list = X_test[-N_det_val:]
+Y_test_det_list = Y_test[-N_det_val:]
 
 N_det_train = len(X_train_det_list)
 print('Loaded number of train, val samples: ', N_det_train, N_det_val)
@@ -98,7 +98,7 @@ test_ds = test_ds.map(format)
 
 train_norm = train_ds.filter(lambda x,y: y ==0.).take(3000)
 train_anom = train_ds.filter(lambda x,y: y ==1.)
-'''
+
 train_norm_means = []
 for x, y in train_norm:
     train_norm_means.append(x.numpy())
@@ -107,7 +107,15 @@ train_anom_means = []
 for x, y in train_anom:
     train_anom_means.append(x.numpy())
 
-th = 34
+import sklearn
+train_means = train_norm_means.append(train_anom_means)
+scaler = sklearn.preprocessing.MinMaxScaler()
+train_means = scaler.fit_transform(np.array(train_means).reshape(-1, 1))
+
+train_norm_means = train_means[:3000]
+train_anom_means =train_means[-len(train_anom_means):]
+
+th = 0.54
 plt.hist(train_anom_means,  bins = int(np.sqrt(len(train_anom_means))), density = True, alpha = 0.6, color = 'C1', label='Anomalous', zorder = 3)
 plt.hist(train_norm_means, bins = int(np.sqrt(len(train_norm_means))),  density = True, alpha = 0.6,color = 'C0', label = 'Non-anomalous',zorder = 3)
 plt.grid(zorder = 1)
@@ -119,7 +127,7 @@ plt.tick_params(axis='both', which='major', labelsize=14)
 plt.legend(loc = 'upper left', fontsize = 14)
 plt.tight_layout()
 plt.show()
-'''
+
 
 threshold = 27.1
 true = []
