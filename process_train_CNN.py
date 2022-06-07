@@ -277,7 +277,7 @@ class_weights = {0: 1., 1: anomaly_weight}
 
 filepath = 'saved_CNNs/%s/cnn_%s_epoch_{epoch:02d}' % (savename, savename)
 ##DO NOTNSAVE EVERY EPOCH TAKES SPACE
-checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=filepath,monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', save_freq='epoch')
+checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=filepath,monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', save_freq=10*len(list(train_ds_batch)))
 
 filename = 'saved_CNNs/%s/history_log.csv' % savename
 history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=load)
