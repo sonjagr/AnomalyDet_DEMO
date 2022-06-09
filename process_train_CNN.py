@@ -4,6 +4,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from helpers.dataset_helpers import create_cnn_dataset
 from old_codes.autoencoders import *
 import matplotlib.pyplot as plt
+from helpers.cnn_helpers import process_crop, process_crop_bright_encode, patch_images, format, rotate
 import random, time, argparse
 import tensorflow as tf
 
@@ -57,39 +58,58 @@ f.close()
 random.seed(42)
 bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 
-ae = AutoEncoder()
-print('Loading autoencoder and data...')
-ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
-
 base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
 dir_det = 'DET/'
+dir_ae = 'AE/'
 images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 
-X_train_det_list = np.load(base_dir + dir_det + 'X_train_DET.npy', allow_pickle=True)
-X_val_det_list = np.load(base_dir + dir_det + 'X_test_DET.npy', allow_pickle=True)
-X_train_det_list = [images_dir_loc + s for s in X_train_det_list]
-X_val_det_list = [images_dir_loc + s for s in X_val_det_list]
-Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET.npy', allow_pickle=True).tolist()
-Y_val_det_list = np.load(base_dir + dir_det + 'Y_test_DET.npy', allow_pickle=True).tolist()
+X_train_list_ae = np.load(base_dir + dir_ae + 'X_train_AE.npy', allow_pickle=True)
+X_test_list_ae = np.load(base_dir + dir_ae + 'X_test_AE.npy', allow_pickle=True)
+
+np.random.seed(1)
+X_train_list_normal_to_remove = np.random.choice(X_train_list_ae, 8000, replace=False)
+X_test_val_list_normal_to_remove = np.random.choice(X_test_list_ae, 2000, replace=False)
+
+X_train_list_normal_removed = [x for x in X_train_list_ae if x not in X_train_list_normal_to_remove]
+X_test_list_normal_removed = [x for x in X_test_list_ae if x not in X_test_val_list_normal_to_remove]
+
+X_train_det_list = np.load(base_dir + dir_det + 'X_train_DET_very_cleaned.npy', allow_pickle=True)
+X_val_det_list = np.load(base_dir + dir_det + 'X_test_DET_very_cleaned.npy', allow_pickle=True)
+
+Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET_very_cleaned.npy', allow_pickle=True).tolist()
+Y_val_det_list = np.load(base_dir + dir_det + 'Y_test_DET_very_cleaned.npy', allow_pickle=True).tolist()
 
 N_det_val = int(len(X_val_det_list)/2)
 X_val_det_list = X_val_det_list[:N_det_val]
 Y_val_det_list = Y_val_det_list[:N_det_val]
-
 N_det_train = len(X_train_det_list)
+
+X_train_normal_list = np.random.choice(X_train_list_normal_removed,int(N_det_train/2), replace=False)
+X_val_normal_list = np.random.choice(X_test_list_normal_removed, int(N_det_val/2), replace=False)
+
 print('Loaded number of train, val samples: ', N_det_train, N_det_val)
 print('All loaded. Starting dataset creation...')
 time1 = time.time()
 
-train_ds = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=True)
-val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list, _shuffle=True)
+X_train_det_list = np.append(X_train_det_list, X_train_normal_list, axis =0)
+X_val_det_list = np.append(X_val_det_list, X_val_normal_list, axis =0)
+X_train_det_list = [images_dir_loc + s for s in X_train_det_list]
+X_val_det_list = [images_dir_loc + s for s in X_val_det_list]
+
+print(np.array(Y_train_det_list).shape)
+Y_train_det_list = np.append(Y_train_det_list, np.full((int(N_det_train/2), 408), 0.), axis =0)
+Y_val_det_list = np.append(Y_val_det_list, np.full((int(N_det_val/2), 408), 0.), axis =0)
+print(np.array(Y_train_det_list).shape)
+train_ds = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=False)
+val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list, _shuffle=False)
+
+normal_train_ds = create_cnn_dataset(X_train_normal_list, np.full((N_det_train, 408), 0.), _shuffle=False)
 
 METRICS = [
       tf.keras.metrics.TruePositives(name='tp'),
       tf.keras.metrics.FalsePositives(name='fp'),
       tf.keras.metrics.TrueNegatives(name='tn'),
       tf.keras.metrics.FalseNegatives(name='fn'),
-      tf.keras.metrics.BinaryAccuracy(name='accuracy'),
       tf.keras.metrics.Precision(name='precision'),
       tf.keras.metrics.Recall(name='recall'),
       tf.keras.metrics.AUC(name='auc'),
@@ -125,95 +145,43 @@ def plot_examples(ds):
         plt.title(str(y))
         plt.show()
 
-@tf.function
-def crop(img, lbl):
-    img = tf.reshape(img, [-1, 2736, 3840, INPUT_DIM])
-    img = tf.keras.layers.Cropping2D(cropping=((0, 16), (0, 0)))(img)
-    return img, lbl
+#train_ds_nob = train_ds.map(process_crop_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+train_ds_nob = train_ds.map(process_crop, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-@tf.function
-def encode(img, lbl, ae):
-    img = tf.reshape(img, [-1, 2720, 3840, INPUT_DIM])
-    encoded_img = ae.encode(img)
-    decoded_img = ae.decode(encoded_img)
-    aed_img = tf.sqrt(tf.pow(tf.subtract(img, decoded_img), 2))
-    return aed_img, lbl
+np.random.seed(42)
+brightnesses = np.random.uniform(low = 0.8, high = 0.95, size = 788)
+counter1 = tf.data.Dataset.from_tensor_slices(brightnesses)
+train_ds_c = tf.data.Dataset.zip((train_ds, counter1))
 
-@tf.function
-def bright_encode(img, lbl, ae):
-    delta = tf.random.uniform([], minval=0.75, maxval=0.95, seed=None, dtype=tf.float32)
-    img = tf.math.multiply(img, delta)
-    img = tf.reshape(img, [-1, 2720, 3840, INPUT_DIM])
-    encoded_img = ae.encode(img)
-    decoded_img = ae.decode(encoded_img)
-    aed_img = tf.sqrt(tf.pow(tf.subtract(img, decoded_img), 2))
-    return aed_img, lbl
-
-@tf.function
-def patch_images(img, lbl):
-    split_img = tf.image.extract_patches(images=img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1], rates=[1, 1, 1, 1], padding='VALID')
-    re = tf.reshape(split_img, [17*24, 160 *160])
-    lbl = tf.reshape(lbl, [17*24])
-    patch_ds = tf.data.Dataset.from_tensors((re, lbl))
-    return patch_ds
-
-@tf.function
-def process_crop_bright_encode(image, label):
-    image, label = crop(image, label)
-    image, label = bright_encode(image, label, ae)
-    return image,label
-
-@tf.function
-def process_crop_encode(image, label):
-    image, label = crop(image, label)
-    image, label = encode(image, label, ae)
-    return image,label
-
-@tf.function
-def rotate(image_label, seed):
-    image, label = image_label
-    image = tf.reshape(image, [1, 160, 160])
-    rots = tf.random.uniform(shape=(), minval=1, maxval=4, dtype=tf.int32, seed = None)
-    rot = tf.image.rot90(image, k=rots)
-    return tf.reshape(rot, [160,160,1]), label
-
-## change brightness of patch
-@tf.function
-def change_bright(image, label):
-    delta = tf.random.uniform([], minval=0.75, maxval=0.95, seed = None, dtype=tf.float32)
-    image = tf.math.multiply(image, delta)
-    return image, label
-
-@tf.function
-def format(image, label):
-    image = tf.reshape(image, [160, 160, 1])
-    label = tf.cast(label, tf.float32)
-    return image, label
-
-train_ds_nob = train_ds.map(process_crop_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-train_ds_brightness = train_ds.map(process_crop_bright_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-val_ds = val_ds.map(process_crop_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+train_ds_brightness = train_ds_c.map(lambda x,z: process_crop_bright_encode(x,z), num_parallel_calls=tf.data.experimental.AUTOTUNE)
+#val_ds = val_ds.map(process_crop_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+val_ds = val_ds.map(process_crop, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
 train_ds = train_ds_nob.flat_map(patch_images).unbatch()
 train_ds_brightness = train_ds_brightness.flat_map(patch_images).unbatch()
 
 val_ds = val_ds.flat_map(patch_images).unbatch()
 
-nbr_of_normal = 128240
-
 train_ds_anomaly = train_ds.filter(lambda x, y:  y == 1.)
 train_ds_brightness_anomaly = train_ds_brightness.filter(lambda x, y:  y == 1.)
 train_ds_anomaly = train_ds_anomaly.concatenate(train_ds_brightness_anomaly)
 
-train_ds_normal = train_ds.filter(lambda x, y:  y == 0.).shuffle(buffer_size=300000, reshuffle_each_iteration=False, seed=42).take(nbr_of_normal)
-
-counter = tf.data.experimental.Counter()
-train_ds_to_augment = tf.data.Dataset.zip((train_ds_anomaly, counter))
+nbr_anom_patches = 1349
+nbr_anom_patches = len(list(train_ds.filter(lambda x, y:  y == 1.)))
+print('Number of anom patches: ', nbr_anom_patches)
+rotations = np.random.randint(low = 1, high = 4, size = 2*nbr_anom_patches).astype('int32')
+counter2 = tf.data.Dataset.from_tensor_slices(rotations)
+train_ds_to_augment = tf.data.Dataset.zip((train_ds_anomaly, counter2))
 
 train_ds_rotated = train_ds_anomaly.concatenate(train_ds_to_augment.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE))
 
-#augmented = train_ds_rotated.concatenate(train_ds_rotated.map(change_bright, num_parallel_calls=tf.data.experimental.AUTOTUNE))
 augmented = train_ds_rotated
+
+#nbr_of_normal = nbr_anom_patches*4*50
+#train_ds_normal = train_ds.filter(lambda x, y:  y == 0.).shuffle(buffer_size=300000, reshuffle_each_iteration=False, seed=42).take(nbr_of_normal)
+train_ds_normal = train_ds.filter(lambda x, y:  y == 0.)
+
+nbr_of_normal = len(list(train_ds_normal))
 
 train_ds_final = train_ds_normal.concatenate(augmented)
 train_ds_final = train_ds_final.map(format, num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -222,11 +190,14 @@ val_ds = val_ds.map(format, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 train_ds_anomaly = train_ds_final.filter(lambda x, y:  y == 1.)
 train_ds_normal = train_ds_final.filter(lambda x, y: y == 0.)
 
-normal, anomalous = len(list(train_ds_normal)), len(list(train_ds_anomaly))
+normal, anomalous = nbr_of_normal, 4*nbr_anom_patches
 anomaly_weight = normal/anomalous
-print('Number of normal, anomalous samples: ', normal, anomalous)
 
-#anomaly_weight = (nbr_of_normal)/3206
+weight_normal = (1/normal)*(normal+anomalous)/ 2.0
+weight_anomaly = (1/anomalous)*(normal+anomalous) / 2.0
+class_weights = {0: weight_normal, 1: weight_anomaly}
+
+print('Number of normal, anomalous samples: ', normal, anomalous)
 print('Anomaly weight: ', anomaly_weight)
 
 train_ds_final = train_ds_final.cache().shuffle(buffer_size=normal+anomalous, reshuffle_each_iteration=True)
@@ -234,9 +205,6 @@ val_ds = val_ds.cache()
 
 train_ds_batch = train_ds_final.batch(batch_size=batch_size, drop_remainder = True)
 val_ds_batch = val_ds.batch(batch_size=batch_size, drop_remainder = False)
-
-plot_examples(train_ds_anomaly.take(2))
-plot_examples(train_ds_normal.take(2))
 
 time2 = time.time()
 pro_time = time2-time1
@@ -251,19 +219,11 @@ if load == 'True':
     def scheduler(lr):
         return lr * tf.math.exp(-0.01)
 else:
-    from CNNs import *
+    from new_CNNs import *
     if model_ID == 'model_tf':
         model = model_tf
-    if model_ID == 'model_tf2':
-        model = model_tf2
-    if model_ID == 'model_tf3':
-        model = model_tf3
-    if model_ID == 'model_simple':
-        model = model_simple
-    if model_ID == 'model_simple2':
-        model = model_simple2
-    if model_ID == 'model_simple3':
-        model = model_simple3
+    if model_ID == 'model_maxpool':
+        model = model_maxpool
     def scheduler(epoch, lr):
         if epoch < 50:
             return lr
@@ -272,8 +232,6 @@ else:
 
 print(model.summary())
 model.compile(optimizer = optimizer, loss= tf.keras.losses.BinaryCrossentropy(from_logits=False), metrics=METRICS)
-
-class_weights = {0: 1., 1: anomaly_weight}
 
 filepath = 'saved_CNNs/%s/cnn_%s_epoch_{epoch:02d}' % (savename, savename)
 ##DO NOTNSAVE EVERY EPOCH TAKES SPACE
