@@ -1,9 +1,12 @@
-import tensorflow as tf
 import cv2
-from common import *
 import numpy as np
 import random
-import matplotlib.pyplot as plt
+from autoencoders2 import *
+
+ae = AutoEncoder()
+print('Loading autoencoder and data...')
+ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
+
 
 ## calculate the output dimensions of a conv layer
 def cnn_layer_dim(input_size, kernel_size, strides, padding):
@@ -37,19 +40,30 @@ def weighted_bincrossentropy(true, pred, weight_zero=1.0, weight_one=20.):
 
     return tf.keras.backend.mean(weighted_bin_crossentropy)
 
-## crop bottom part
 @tf.function
-def crop(img):
-    output = tf.image.crop_to_bounding_box(image = img, offset_height = 0, offset_width = 0, target_height = 2720, target_width= 3840)
-    return output
+def crop(img, lbl):
+    img = tf.reshape(img, [-1, 2736, 3840, INPUT_DIM])
+    img = tf.keras.layers.Cropping2D(cropping=((0, 16), (0, 0)))(img)
+    return img, lbl
 
-# split into patches
 @tf.function
-def patch_images(image):
-    split_img = tf.image.extract_patches(images=image, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1], rates=[1, 1, 1, 1], padding='VALID')
-    re = tf.reshape(split_img, [17*24, 160 * 160])
-    noisy_ds = tf.data.Dataset.from_tensors((re))
-    return noisy_ds
+def bright_encode(img, lbl, ae, delta):
+    img = tf.cast(img, tf.float64)
+    img = tf.math.multiply(img, delta)
+    img = tf.cast(img, tf.float32)
+    img = tf.reshape(img, [-1, 2720, 3840, INPUT_DIM])
+    encoded_img = ae.encode(img)
+    decoded_img = ae.decode(encoded_img)
+    aed_img = tf.sqrt(tf.pow(tf.subtract(img, decoded_img), 2))
+    return aed_img, lbl
+
+@tf.function
+def patch_images(img, lbl):
+    split_img = tf.image.extract_patches(images=img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1], rates=[1, 1, 1, 1], padding='VALID')
+    re = tf.reshape(split_img, [17*24, 160 *160])
+    lbl = tf.reshape(lbl, [17*24])
+    patch_ds = tf.data.Dataset.from_tensors((re, lbl))
+    return patch_ds
 
 ## flatten labels per whole image
 @tf.function
@@ -131,14 +145,45 @@ def grad(model, inputs, targets):
         loss_value = loss(model, inputs, targets, training=True)
     return loss_value, tape.gradient(loss_value, model.trainable_variables)
 
-## autoencode and return difference
 @tf.function
-def encode(img, ae):
+def encode(img, lbl, ae):
     img = tf.reshape(img, [-1, 2720, 3840, INPUT_DIM])
     encoded_img = ae.encode(img)
     decoded_img = ae.decode(encoded_img)
     aed_img = tf.sqrt(tf.pow(tf.subtract(img, decoded_img), 2))
-    return aed_img
+    return aed_img, lbl
+
+@tf.function
+def process_crop_bright_encode(image_label, delta):
+    image, label = image_label
+    image, label = crop(image, label)
+    image, label = bright_encode(image, label, ae, delta)
+    return image,label
+
+@tf.function
+def process_crop_encode(image, label):
+    image, label = crop(image, label)
+    image, label = encode(image, label, ae)
+    return image,label
+
+@tf.function
+def process_crop(image, label):
+    image, label = crop(image, label)
+    image = tf.reshape(image, [-1, 2720, 3840, INPUT_DIM])
+    return image,label
+
+@tf.function
+def rotate(image_label, rots):
+    image, label = image_label
+    image = tf.reshape(image, [1, 160, 160])
+    rot = tf.image.rot90(image, k=rots)
+    return tf.reshape(rot, [160,160,1]), label
+
+@tf.function
+def format(image, label):
+    image = tf.reshape(image, [160, 160, 1])
+    label = tf.cast(label, tf.float32)
+    return image, label
 
 ## preprocessinh function for dataframes
 def preprocess(imgs, lbls, to_encode = True, ae = False, normal_times = 50, to_augment = False, to_brightness = False, to_brightness_before_ae = False, batch_size = 256, drop_rem = False):

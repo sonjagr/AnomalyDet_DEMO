@@ -5,6 +5,7 @@ import pickle
 import matplotlib.pyplot as plt
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from helpers.dataset_helpers import create_dataset
