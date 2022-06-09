@@ -278,7 +278,10 @@ else:
 print(model.summary())
 model.compile(optimizer = optimizer, loss= tf.keras.losses.BinaryCrossentropy(from_logits=False), metrics=METRICS)
 
-class_weights = {0: 1., 1: anomaly_weight}
+anomaly_weight = 100.
+class_weights = []
+for i in range(0, 408):
+    class_weights.append({0: 1., 1: anomaly_weight})
 
 filepath = 'saved_CNNs/%s/cnn_%s_epoch_{epoch:02d}' % (savename, savename)
 
@@ -292,7 +295,7 @@ history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=lo
 lr_schedule = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
 print('Starting training:')
-history = model.fit(train_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), epochs = num_epochs, validation_data = val_ds_batch.prefetch(tf.data.experimental.AUTOTUNE),  callbacks = [checkpoint_callback, history_logger])
+history = model.fit(train_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), epochs = num_epochs,  validation_data = val_ds_batch.prefetch(tf.data.experimental.AUTOTUNE),  callbacks = [checkpoint_callback, history_logger])
 print('Training finished, plotting...')
 
 plot_metrics(history)
