@@ -16,9 +16,9 @@ from sklearn.metrics import confusion_matrix
 tf.keras.backend.clear_session()
 
 gpu = '5'
-savename = 'testing'
+savename = 'testing_whole2'
 batch_size = 512
-epoch = 160
+epoch =81
 
 if gpu is not 0:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
@@ -46,7 +46,8 @@ X_test_det_list = [images_dir_loc + s for s in X_test_det_list]
 X_train_norm_list = [images_dir_loc + s for s in X_train_norm_list]
 X_test_norm_list = [images_dir_loc + s for s in X_test_norm_list]
 
-Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET_very_cleaned.npy', allow_pickle=True).tolist()
+Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET.npy', allow_pickle=True)
+print(Y_train_det_list[0].shape)
 Y_test_det_list = np.load(base_dir + dir_det + 'Y_test_DET_very_cleaned.npy', allow_pickle=True).tolist()
 
 Y_train_norm_list = np.full((556, 408), 0.).tolist()
@@ -124,6 +125,15 @@ def patch_image(img):
     re = tf.reshape(split_img, [17*24, 160 *160])
     return re
 
+def weighted_bincrossentropy(true, pred, weight_zero=1.0, weight_one=200.):
+    bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+    bin_crossentropy = bce(true, pred)
+
+    weights = true * weight_one + (1. - true) * weight_zero
+    weighted_bin_crossentropy = weights * bin_crossentropy
+
+    return tf.keras.backend.mean(weighted_bin_crossentropy)
+
 @tf.function
 def process_crop_encode(image, label):
     image, label = crop(image, label)
@@ -137,7 +147,7 @@ def process_crop(image, label):
 
 @tf.function
 def format(image, label):
-    image = tf.reshape(image, [160, 160, 1])
+    image = tf.reshape(image, [2720,3840, 1])
     label = tf.cast(label, tf.float32)
     return image, label
 
@@ -174,8 +184,10 @@ def plot_prc(name, labels, predictions, **kwargs):
 def plot_training(df):
     train_loss = df['loss']
     val_loss = df['val_loss']
-    plt.plot(np.arange(0,len(train_loss)), train_loss, label = 'Training')
-    plt.plot(np.arange(0,len(val_loss)), val_loss, label = 'Validation')
+    plt.plot(np.arange(0, len(train_loss)), train_loss, label = 'Training')
+    plt.plot(np.arange(0, len(val_loss)), val_loss, label = 'Validation')
+    plt.ylim(0,0.2)
+    plt.xlim(150, 500)
     plt.legend()
     plt.grid()
     plt.xlabel('Epoch')
@@ -192,17 +204,17 @@ test_ds = test_ds_det.take(taken)
 test_ds_whole = test_ds
 
 test_ds = test_ds.map(process_crop_encode)
-test_ds = test_ds.flat_map(patch_images).unbatch()
 test_ds = test_ds.map(format)
 test_ds_batch = test_ds.batch(1)
 
 test_labels = np.array(Y_test_det_list[:taken]).flatten()
-model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, epoch))
+model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, epoch), compile=False)
 
 ##choose threshold for classification
-p = 0.005
+p = 0.0005
 
 test_pred = model.predict(test_ds_batch, batch_size = batch_size)
+
 '''
 ind = 0
 defective = 0
@@ -222,7 +234,7 @@ for x, y in test_ds_whole:
             true_x, true_y = box_index_to_coords(i)
             rec = matplotlib.patches.Rectangle((true_x, true_y), 160, 160, facecolor='None', edgecolor='red')
             ax.add_patch(rec)
-    predictions = test_pred[ind*408:(ind+1)*408]
+    predictions = test_pred[ind,:]
     predictions = np.array(predictions).flatten()
     indspred = np.where(predictions > p)[0]
     indspred = np.array(indspred).astype('int')
@@ -241,14 +253,17 @@ for x, y in test_ds_whole:
 print('Number of flagged as anomalous, normals: ', defective, normal)
 '''
 ##load and plot training history
-#training_history_file = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/history_log.csv' % savename
-#history_df = pd.read_csv(training_history_file)
-#plot_training(history_df)
+training_history_file = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/history_log.csv' % savename
+history_df = pd.read_csv(training_history_file)
+plot_training(history_df)
+plt.show()
 
 ## make predictions on test set
-test_true = test_labels
+test_true = test_labels.flatten()
+test_pred = test_pred.flatten()
 
 plot_cm(test_true, test_pred, p = p)
+plt.show()
 cm = confusion_matrix(test_true, rounding_thresh(test_pred, p), normalize='true')
 
 tn, fp, fn, tp = cm.ravel()
