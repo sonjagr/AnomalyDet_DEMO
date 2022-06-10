@@ -110,8 +110,8 @@ X_val_list = [images_dir_loc + s for s in X_val_list]
 X_train_det_list = [images_dir_loc + s for s in X_train_det_list]
 X_train_normal_list = [images_dir_loc + s for s in X_train_normal_list]
 
-Y_train_list = np.append(Y_train_det_list, np.full((int(len(Y_train_det_list)), 408), 0.), axis =0)
-Y_val_list = np.append(Y_val_det_list, np.full((int(len(Y_val_det_list)), 408), 0.), axis =0)
+Y_train_list = np.append(Y_train_det_list, np.full((int(len(X_train_normal_list)), 408), 0.), axis =0)
+Y_val_list = np.append(Y_val_det_list, np.full((int(len(X_val_normal_list)), 408), 0.), axis =0)
 
 train_ds = create_cnn_dataset(X_train_list, Y_train_list, _shuffle=False)
 val_ds = create_cnn_dataset(X_val_list, Y_val_list, _shuffle=False)
@@ -203,6 +203,15 @@ def process_crop_bright_encode(image_label, delta):
     image, label = bright_encode(image, label, ae, delta)
     return image,label
 
+def weighted_bincrossentropy(true, pred, weight_zero=1.0, weight_one=200.):
+    bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+    bin_crossentropy = bce(true, pred)
+
+    weights = true * weight_one + (1. - true) * weight_zero
+    weighted_bin_crossentropy = weights * bin_crossentropy
+
+    return tf.keras.backend.mean(weighted_bin_crossentropy)
+
 @tf.function
 def rotate(image_label, rots):
     image, label = image_label
@@ -276,12 +285,7 @@ else:
             return lr * tf.math.exp(-0.01)
 
 print(model.summary())
-model.compile(optimizer = optimizer, loss= tf.keras.losses.BinaryCrossentropy(from_logits=False), metrics=METRICS)
-
-anomaly_weight = 100.
-class_weights = []
-for i in range(0, 408):
-    class_weights.append({0: 1., 1: anomaly_weight})
+model.compile(optimizer = optimizer, loss= weighted_bincrossentropy, metrics=METRICS)
 
 filepath = 'saved_CNNs/%s/cnn_%s_epoch_{epoch:02d}' % (savename, savename)
 
@@ -295,7 +299,7 @@ history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=lo
 lr_schedule = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
 print('Starting training:')
-history = model.fit(train_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), epochs = num_epochs,  validation_data = val_ds_batch.prefetch(tf.data.experimental.AUTOTUNE),  callbacks = [checkpoint_callback, history_logger])
+history = model.fit(train_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), epochs = num_epochs, validation_data = val_ds_batch.prefetch(tf.data.experimental.AUTOTUNE),  callbacks = [checkpoint_callback, history_logger], verbose = 1)
 print('Training finished, plotting...')
 
 plot_metrics(history)
