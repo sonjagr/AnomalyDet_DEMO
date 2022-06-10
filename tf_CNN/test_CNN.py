@@ -15,7 +15,7 @@ from sklearn.metrics import confusion_matrix
 
 tf.keras.backend.clear_session()
 
-gpu = '1'
+gpu = '5'
 savename = 'testing_model3'
 batch_size = 512
 epoch =90
@@ -211,7 +211,7 @@ test_labels = np.array(Y_test_det_list[:taken]).flatten()
 model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, epoch), compile=False)
 
 ##choose threshold for classification
-p = 0.0005
+p = 0.5
 
 test_pred = model.predict(test_ds_batch, batch_size = batch_size)
 
