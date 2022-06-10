@@ -15,10 +15,10 @@ from sklearn.metrics import confusion_matrix
 
 tf.keras.backend.clear_session()
 
-gpu = '5'
-savename = 'testing_whole2'
+gpu = '1'
+savename = 'testing_model3'
 batch_size = 512
-epoch =81
+epoch =90
 
 if gpu is not 0:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
@@ -186,8 +186,8 @@ def plot_training(df):
     val_loss = df['val_loss']
     plt.plot(np.arange(0, len(train_loss)), train_loss, label = 'Training')
     plt.plot(np.arange(0, len(val_loss)), val_loss, label = 'Validation')
-    plt.ylim(0,0.2)
-    plt.xlim(150, 500)
+    #plt.ylim(0,0.2)
+    #plt.xlim(150, 500)
     plt.legend()
     plt.grid()
     plt.xlabel('Epoch')

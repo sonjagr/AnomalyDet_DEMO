@@ -110,8 +110,8 @@ X_val_list = [images_dir_loc + s for s in X_val_list]
 Y_train_list = np.append(Y_train_det_list, np.full((int(len(Y_train_det_list)), 408), 0.), axis =0)
 Y_val_list = np.append(Y_val_det_list, np.full((int(len(Y_val_det_list)), 408), 0.), axis =0)
 
-train_ds = create_cnn_dataset(X_train_list, Y_train_list, _shuffle=False)
-val_ds = create_cnn_dataset(X_val_list, Y_val_list, _shuffle=False)
+train_ds = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=False)
+val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list, _shuffle=False)
 
 normal_train_ds = create_cnn_dataset(X_train_normal_list, np.full((len(X_train_normal_list), 408), 0.), _shuffle=False)
 

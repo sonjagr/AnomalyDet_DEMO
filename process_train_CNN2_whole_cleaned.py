@@ -127,7 +127,7 @@ def encode(img, lbl, ae):
     img = tf.reshape(img, [-1, 2720, 3840, INPUT_DIM])
     encoded_img = ae.encode(img)
     decoded_img = ae.decode(encoded_img)
-    aed_img = tf.sqrt(tf.pow(tf.subtract(img, decoded_img), 2))
+    aed_img = tf.abs(tf.subtract(img, decoded_img))
     return aed_img, lbl
 
 @tf.function
@@ -157,7 +157,7 @@ def bright_encode(img, lbl, ae, delta):
     img = tf.reshape(img, [-1, 2720, 3840, INPUT_DIM])
     encoded_img = ae.encode(img)
     decoded_img = ae.decode(encoded_img)
-    aed_img = tf.sqrt(tf.pow(tf.subtract(img, decoded_img), 2))
+    aed_img = tf.abs(tf.subtract(img, decoded_img))
     return aed_img, lbl
 
 @tf.function
@@ -181,11 +181,11 @@ def process_crop(image, label):
     image, label = crop(image, label)
     return image,label
 
-X_train_det_list = np.load(base_dir + dir_det + 'X_train_DET.npy', allow_pickle=True)
-X_val_det_list = np.load(base_dir + dir_det + 'X_test_DET.npy', allow_pickle=True)
+X_train_det_list = np.load(base_dir + dir_det + 'X_train_DET_very_cleaned.npy', allow_pickle=True)
+X_val_det_list = np.load(base_dir + dir_det + 'X_test_DET_very_cleaned.npy', allow_pickle=True)
 
-Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET.npy', allow_pickle=True).tolist()
-Y_val_det_list = np.load(base_dir + dir_det + 'Y_test_DET.npy', allow_pickle=True).tolist()
+Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET_very_cleaned.npy', allow_pickle=True).tolist()
+Y_val_det_list = np.load(base_dir + dir_det + 'Y_test_DET_very_cleaned.npy', allow_pickle=True).tolist()
 
 N_det_val = int(len(X_val_det_list)/2)
 N_det_train = len(X_train_det_list)

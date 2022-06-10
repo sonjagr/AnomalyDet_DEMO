@@ -98,7 +98,7 @@ X_val_det_list = [images_dir_loc + s for s in X_val_det_list]
 
 print(np.array(Y_train_det_list).shape)
 Y_train_det_list = np.append(Y_train_det_list, np.full((int(N_det_train/2), 408), 0.), axis =0)
-Y_val_det_list = np.append(Y_val_det_list, np.full((int(N_det_val/2), 408), 0.), axis =0)
+Y_val_det_list = np.append(Y_val_det_list, np.full((int(N_det_val), 408), 0.), axis =0)
 print(np.array(Y_train_det_list).shape)
 train_ds = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=False)
 val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list, _shuffle=False)
