@@ -17,9 +17,11 @@ tf.keras.backend.clear_session()
 
 gpu = '5'
 #savename = 'testing_model3'
-savename = 'testing_model3_2_3'
+savename = 'testing_model3_4_run2'
 batch_size = 512
-epoch = 100
+epoch = 150
+
+print('Analysing model: ' + savename + ', epoch: ' +str(epoch))
 
 if gpu is not 0:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
