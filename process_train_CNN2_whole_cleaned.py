@@ -198,10 +198,10 @@ np.random.seed(42)
 X_train_norm_list = np.random.choice(np.load(base_dir + dir_ae + 'X_train_AE.npy', allow_pickle=True), N_det_train)
 X_val_norm_list = np.random.choice(np.load(base_dir + dir_ae + 'X_test_AE.npy', allow_pickle=True), N_det_val)
 
-Y_val_norm_list = np.full((N_det_val, 480), 0)
+Y_val_norm_list = np.full((N_det_val, 408), 0)
 Y_train_norm_list = np.full((N_det_train, 408), 0)
 
-add_normal = False
+add_normal = True
 if add_normal == True:
     X_train_det_list = np.append(X_train_det_list, X_train_norm_list, axis = 0)
     X_val_det_list = np.append(X_val_det_list, X_val_norm_list, axis = 0)

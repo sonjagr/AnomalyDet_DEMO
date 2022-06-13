@@ -17,9 +17,9 @@ tf.keras.backend.clear_session()
 
 gpu = '5'
 #savename = 'testing_model3'
-savename = 'testing_model3_4_run2'
+savename = 'testing_model3_2_3'
 batch_size = 512
-epoch = 200
+epoch = 100
 
 if gpu is not 0:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
@@ -211,7 +211,7 @@ print(len(Y_val_det_list), len(Y_val_norm_list))
 model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, epoch), compile=False)
 
 ##choose threshold for classification
-p = 0.1
+p = 0.2
 print('CLASSIFICATION THRESHOLD: ', p)
 test_pred_orig = model.predict(test_ds_batch, batch_size = 1)
 test_pred = test_pred_orig.flatten()
