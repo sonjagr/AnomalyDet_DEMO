@@ -30,7 +30,8 @@ parser.add_argument("--use_ae", type=bool,
                     help="use ae or not", default=True, required=False)
 parser.add_argument("--bright_aug", type=bool,
                     help="augment brighness or not", default=True, required=False)
-
+parser.add_argument("--one_weight", type=float,
+                    help="anomaly weight", default=100., required=False)
 args = parser.parse_args()
 
 num_epochs = args.epochs
@@ -43,6 +44,7 @@ lr = args.lr
 cont_epoch = args.contfromepoch
 use_ae = args.use_ae
 bright_aug = args.bright_aug
+anomaly_weight = args.one_weight
 
 if gpu != 0:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
@@ -167,7 +169,7 @@ def process_crop_bright_encode(image_label, delta):
     image, label = bright_encode(image, label, ae, delta)
     return image,label
 
-def weighted_bincrossentropy(true, pred, weight_zero=1.0, weight_one=200.):
+def weighted_bincrossentropy(true, pred, weight_zero=1.0, weight_one=anomaly_weight):
     bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
     bin_crossentropy = bce(true, pred)
 
@@ -192,6 +194,21 @@ N_det_train = len(X_train_det_list)
 X_val_det_list = X_val_det_list[:N_det_val]
 Y_val_det_list = Y_val_det_list[:N_det_val]
 
+np.random.seed(42)
+X_train_norm_list = np.random.choice(np.load(base_dir + dir_ae + 'X_train_AE.npy', allow_pickle=True), N_det_train)
+X_val_norm_list = np.random.choice(np.load(base_dir + dir_ae + 'X_test_AE.npy', allow_pickle=True), N_det_val)
+
+Y_val_norm_list = np.full((N_det_val, 480), 0)
+Y_train_norm_list = np.full((N_det_train, 408), 0)
+
+add_normal = False
+if add_normal == True:
+    X_train_det_list = np.append(X_train_det_list, X_train_norm_list, axis = 0)
+    X_val_det_list = np.append(X_val_det_list, X_val_norm_list, axis = 0)
+
+    Y_train_det_list = np.append(Y_train_det_list, Y_train_norm_list, axis = 0)
+    Y_val_det_list  = np.append(Y_val_det_list, Y_val_norm_list, axis = 0)
+
 print('Loaded number of train, val samples: ', N_det_train, N_det_val)
 print('All loaded. Starting dataset creation...')
 time1 = time.time()
@@ -200,9 +217,10 @@ X_val_det_list = [images_dir_loc + s for s in X_val_det_list]
 X_train_det_list = [images_dir_loc + s for s in X_train_det_list]
 
 train_ds = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=False)
+print(len(X_train_det_list), len(Y_train_det_list), np.array(Y_train_det_list).shape)
 train_ds_unprocess = train_ds
 val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list, _shuffle=False)
-
+print(len(X_val_det_list),len(Y_val_det_list), np.array(Y_val_det_list).shape)
 train_ds = train_ds.map(process_crop_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 val_ds = val_ds.map(process_crop_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
@@ -228,7 +246,7 @@ time2 = time.time()
 pro_time = time2-time1
 print('Dataset (time {:.2f} s) created, starting training...'.format(pro_time))
 
-optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
+optimizer = tf.keras.optimizers.Nadam(learning_rate=lr)
 
 if load == 'True':
     print('Loading previously trained model...')
@@ -243,8 +261,10 @@ else:
         model = model_whole2
     if model_ID == 'model_whole3':
         model = model_whole3
+    if model_ID == 'model_whole4':
+        model = model_whole4
     def scheduler(epoch, lr):
-        if epoch < 50:
+        if epoch < 100:
             return lr
         else:
             return lr * tf.math.exp(-0.01)
@@ -259,12 +279,12 @@ save_every = int(np.floor((N_det_train*2)/batch_size)*10)
 checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=filepath, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', save_freq=save_every)
 
 filename = 'saved_CNNs/%s/history_log.csv' % savename
-history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=load)
+history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=True)
 
 lr_schedule = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
 print('Starting training:')
-history = model.fit(train_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), epochs = num_epochs, validation_data = val_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), callbacks = [checkpoint_callback, history_logger], verbose = 1)
+history = model.fit(train_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), epochs = num_epochs, validation_data = val_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), callbacks = [checkpoint_callback, history_logger, lr_schedule], verbose = 1)
 print('Training finished, plotting...')
 
 plot_metrics(history)

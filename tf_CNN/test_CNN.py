@@ -16,9 +16,10 @@ from sklearn.metrics import confusion_matrix
 tf.keras.backend.clear_session()
 
 gpu = '5'
-savename = 'testing_model3'
+#savename = 'testing_model3'
+savename = 'testing_model3_4_run2'
 batch_size = 512
-epoch =90
+epoch = 140
 
 if gpu is not 0:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
@@ -27,46 +28,42 @@ random.seed(42)
 
 ae = AutoEncoder()
 print('Loading autoencoder and data...')
-ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
+ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_TQ3_more_data/AE_TQ3_318_to_318_epochs')
 
 base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
 dir_norm = 'AE/'
 dir_det = 'DET/'
 images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 
-X_train_det_list = np.load(base_dir + dir_det + 'X_train_DET_very_cleaned.npy', allow_pickle=True)
 X_test_det_list = np.load(base_dir + dir_det + 'X_test_DET_very_cleaned.npy', allow_pickle=True)
-
-X_train_norm_list = np.load(base_dir + dir_norm + 'X_train_AE.npy', allow_pickle=True)
 X_test_norm_list = np.load(base_dir + dir_norm + 'X_test_AE.npy', allow_pickle=True)
 
-X_train_det_list = [images_dir_loc + s for s in X_train_det_list]
 X_test_det_list = [images_dir_loc + s for s in X_test_det_list]
-
-X_train_norm_list = [images_dir_loc + s for s in X_train_norm_list]
 X_test_norm_list = [images_dir_loc + s for s in X_test_norm_list]
 
-Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET.npy', allow_pickle=True)
-print(Y_train_det_list[0].shape)
-Y_test_det_list = np.load(base_dir + dir_det + 'Y_test_DET_very_cleaned.npy', allow_pickle=True).tolist()
+Y_test_det_list = np.load(base_dir + dir_det + 'Y_test_DET_very_cleaned.npy', allow_pickle=True).reshape(-1, 17, 24).tolist()
 
-Y_train_norm_list = np.full((556, 408), 0.).tolist()
-Y_test_norm_list = np.full((66, 408), 0.).tolist()
+N_det_test = int(len(Y_test_det_list)/2)
 
-print(np.array(Y_train_det_list).shape)
-N_det_test = int(len(X_test_det_list)/2)
+X_val_det_list = X_test_det_list[:N_det_test]
+X_val_norm_list = X_test_norm_list[:N_det_test]
+Y_val_det_list = Y_test_det_list[:N_det_test]
 
 X_test_det_list = X_test_det_list[-N_det_test:]
 X_test_norm_list = X_test_norm_list[-N_det_test:]
 Y_test_det_list = Y_test_det_list[-N_det_test:]
 
-N_det_train = len(X_train_det_list)
-print('Loaded number of train, val samples: ', N_det_train, N_det_test)
+N_det_val = len(X_val_det_list)
+
+Y_test_norm_list = np.full((N_det_val, 17, 24), 0.).tolist()
+Y_val_norm_list = np.full((N_det_val, 17, 24), 0.).tolist()
+
+print('Loaded number of val, test samples: ', N_det_val, N_det_test)
 print('All loaded. Starting processing...')
 time1 = time.time()
 
-test_ds_det = create_cnn_dataset(X_test_det_list, Y_test_det_list, _shuffle=False)
-test_ds_norm = create_cnn_dataset(X_test_norm_list, Y_test_norm_list, _shuffle=False)
+test_ds = create_cnn_dataset(np.append(X_test_det_list, X_test_norm_list, axis = 0), np.append(Y_test_det_list,Y_test_norm_list, axis = 0), _shuffle=False)
+val_ds = create_cnn_dataset(np.append(X_val_det_list, X_val_norm_list, axis = 0), np.append(Y_val_det_list,Y_val_norm_list, axis = 0), _shuffle=False)
 
 def plot_metrics(history):
     plt.figure(2)
@@ -125,7 +122,7 @@ def patch_image(img):
     re = tf.reshape(split_img, [17*24, 160 *160])
     return re
 
-def weighted_bincrossentropy(true, pred, weight_zero=1.0, weight_one=200.):
+def weighted_bincrossentropy(true, pred, weight_zero=1.0, weight_one=408.):
     bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
     bin_crossentropy = bce(true, pred)
 
@@ -146,7 +143,7 @@ def process_crop(image, label):
     return image,label
 
 @tf.function
-def format(image, label):
+def format_imgs(image, label):
     image = tf.reshape(image, [2720,3840, 1])
     label = tf.cast(label, tf.float32)
     return image, label
@@ -161,25 +158,25 @@ def plot_cm(labels, predictions, p=0.5):
 import sklearn
 def plot_roc(name, labels, predictions, **kwargs):
     fp, tp, _ = sklearn.metrics.roc_curve(labels, predictions)
-
+    plt.figure(2)
     plt.plot(100*fp, 100*tp, label=name, linewidth=2, **kwargs)
     plt.xlabel('False positives [%]')
     plt.ylabel('True positives [%]')
     plt.xlim([-0.5,60])
     plt.ylim([40,100.5])
     plt.grid(True)
-    ax = plt.gca()
-    ax.set_aspect('equal')
+    plt.legend(loc='lower right')
+    plt.show()
 
 def plot_prc(name, labels, predictions, **kwargs):
     precision, recall, _ = sklearn.metrics.precision_recall_curve(labels, predictions)
-
+    plt.figure(3)
     plt.plot(precision, recall, label=name, linewidth=2, **kwargs)
     plt.xlabel('Precision')
     plt.ylabel('Recall')
     plt.grid(True)
-    ax = plt.gca()
-    ax.set_aspect('equal')
+    plt.legend(loc='lower right')
+    plt.show()
 
 def plot_training(df):
     train_loss = df['loss']
@@ -198,22 +195,53 @@ def rounding_thresh(input, thresh):
     rounded = np.round(input - thresh + 0.5)
     return rounded
 
-taken = 66
-
-test_ds = test_ds_det.take(taken)
 test_ds_whole = test_ds
+val_ds_whole = val_ds
 
 test_ds = test_ds.map(process_crop_encode)
-test_ds = test_ds.map(format)
+test_ds = test_ds.map(format_imgs)
 test_ds_batch = test_ds.batch(1)
+val_ds = val_ds.map(process_crop_encode)
+val_ds = val_ds.map(format_imgs)
+val_ds_batch = val_ds.batch(1)
 
-test_labels = np.array(Y_test_det_list[:taken]).flatten()
+test_labels = np.append(Y_test_det_list, Y_test_norm_list).flatten()
+val_labels = np.append(Y_val_det_list, Y_val_norm_list).flatten()
+print(len(Y_val_det_list), len(Y_val_norm_list))
 model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, epoch), compile=False)
 
 ##choose threshold for classification
-p = 0.5
+p = 0.01
+print('CLASSIFICATION THRESHOLD: ', p)
+test_pred_orig = model.predict(test_ds_batch, batch_size = 1)
+test_pred = test_pred_orig.flatten()
+val_pred = model.predict(val_ds_batch, batch_size = 1).flatten()
+print(len(val_pred))
+print(len(val_labels))
 
-test_pred = model.predict(test_ds_batch, batch_size = batch_size)
+##load and plot training history
+training_history_file = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/history_log.csv' % savename
+history_df = pd.read_csv(training_history_file)
+plot_training(history_df)
+plt.show()
+
+## select classification threshold based on validation fpr+fnr
+ps = np.arange(0.01, 0.5, 0.01)
+fnr_val = []
+fpr_val = []
+for pi in ps:
+    cm = confusion_matrix(val_labels, rounding_thresh(val_pred, pi), normalize='true')
+    tn, fp, fn, tp = cm.ravel()
+    fpr =  fp / (fp + tn)
+    fnr = fn / (fn + tp)
+    fnr_val.append(fnr)
+    fpr_val.append(fpr)
+plt.title('FPR and FNR calculated for validation data')
+plt.plot(ps, fpr_val, label = 'fpr')
+plt.plot(ps, fnr_val, label = 'fnr')
+plt.grid()
+plt.legend()
+plt.show()
 
 '''
 ind = 0
@@ -234,7 +262,7 @@ for x, y in test_ds_whole:
             true_x, true_y = box_index_to_coords(i)
             rec = matplotlib.patches.Rectangle((true_x, true_y), 160, 160, facecolor='None', edgecolor='red')
             ax.add_patch(rec)
-    predictions = test_pred[ind,:]
+    predictions = test_pred[ind*408:(ind+1)*408]
     predictions = np.array(predictions).flatten()
     indspred = np.where(predictions > p)[0]
     indspred = np.array(indspred).astype('int')
@@ -247,24 +275,17 @@ for x, y in test_ds_whole:
             if j in inds:
                 rec = matplotlib.patches.Rectangle((true_x, true_y), 160, 160, facecolor='None', edgecolor='green')
             ax.add_patch(rec)
+    if len(indspred) == 0:
+        normal = normal + 1
     ind = ind + 1
     #plt.show()
 
-print('Number of flagged as anomalous, normals: ', defective, normal)
+print('Number of flagged as anomalous, normals, all: ', defective, normal, ind)
 '''
-##load and plot training history
-training_history_file = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/history_log.csv' % savename
-history_df = pd.read_csv(training_history_file)
-plot_training(history_df)
-plt.show()
+print('FOR PATCHES: ')
+plot_cm(test_labels, test_pred, p = p)
 
-## make predictions on test set
-test_true = test_labels.flatten()
-test_pred = test_pred.flatten()
-
-plot_cm(test_true, test_pred, p = p)
-plt.show()
-cm = confusion_matrix(test_true, rounding_thresh(test_pred, p), normalize='true')
+cm = confusion_matrix(test_labels, rounding_thresh(test_pred, p), normalize='true')
 
 tn, fp, fn, tp = cm.ravel()
 print('tn, fp, fn, tp: ', tn, fp, fn, tp)
@@ -275,17 +296,58 @@ print('Error: ', error)
 acc = 1-error
 print('Accuracy: ', acc)
 
+f2 = sklearn.metrics.fbeta_score(test_labels, rounding_thresh(test_pred, p), beta = 2)
+print('Fbeta: ', f2)
+
 print('FPR: ', fp/(fp+tn))
 print('FNR: ', fn/(fn+tp))
 
-plot_roc("Test", test_true, test_pred, linestyle='--')
-plt.legend(loc='lower right')
-plt.show()
+plot_roc("Test", test_labels, test_pred, linestyle='--')
 
-plot_prc("Test", test_true, test_pred,  linestyle='--')
-plt.legend(loc='lower right')
-plt.show()
+plot_prc("Test", test_labels, test_pred,  linestyle='--')
 
 for name, metric in zip(model.metrics_names, model.metrics):
-    print(name, ': ', metric(test_true, rounding_thresh(test_pred, p)).numpy())
+    print(name, ': ', metric(test_labels, rounding_thresh(test_pred, p)).numpy())
 print()
+
+
+ind = 0
+whole_test_preds = []
+whole_true_labels = []
+for x, y in test_ds_batch:
+    y = y.numpy().reshape(408)
+    over = 0.
+    for i in y:
+        if i == 1.:
+            over = 1.
+    whole_true_labels = np.append(whole_true_labels, over)
+for pred in test_pred_orig:
+    over = 0.
+    pred = pred.reshape(408)
+    for i in pred:
+        if i > p:
+            over = 1.
+    whole_test_preds = np.append(whole_test_preds, over)
+whole_true_labels = np.array(whole_true_labels)
+whole_test_preds = np.array(whole_test_preds)
+print(len(whole_true_labels), len(whole_test_preds))
+print('FOR WHOLE IMAGES: ')
+plot_cm(whole_true_labels, whole_test_preds, p = p)
+
+cm = confusion_matrix(whole_true_labels, whole_test_preds)
+
+tn, fp, fn, tp = cm.ravel()
+print('tn, fp, fn, tp: ', tn, fp, fn, tp)
+
+error = (fp+fn)/(tp+tn+fp+fn)
+print('Error: ', error)
+
+acc = 1-error
+print('Accuracy: ', acc)
+
+f2 = sklearn.metrics.fbeta_score( whole_true_labels,whole_test_preds, beta = 2)
+print('Fbeta: ', f2)
+
+print('FPR: ', fp/(fp+tn))
+print('FNR: ', fn/(fn+tp))
+
