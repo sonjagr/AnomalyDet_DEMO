@@ -120,6 +120,7 @@ train_ds = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=False
 val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list, _shuffle=False)
 
 normal_normal_train_ds = create_cnn_dataset(X_train_normal_list, np.full((int(len(X_train_normal_list)), 408), 0.), _shuffle=False)
+
 ## with normal images
 more_normal_train_ds = create_cnn_dataset(X_train_list, Y_train_list, _shuffle=False)
 more_normal_val_ds = create_cnn_dataset(X_val_list, Y_val_list, _shuffle=False)
@@ -257,11 +258,10 @@ def flip(image_label, seed):
 
 @tf.function
 def shift(image_label, factor):
-    factor = factor/100
-    factor = tf.cast(factor, tf.float32)
     image, label = image_label
     image = tf.reshape(image, [160, 160, 1])
-    shifted = tf.keras.layers.RandomTranslation(factor, factor, fill_mode='reflect', interpolation='bilinear')(image)
+    shifted = tf.keras.layers.experimental.preprocessing.RandomTranslation(height_factor=factor, width_factor=factor, fill_mode='reflect', interpolation='bilinear')
+    image = shifted
     return tf.reshape(shifted, [160,160,1]), label
 
 @tf.function
@@ -331,13 +331,14 @@ train_ds_to_flip = tf.data.Dataset.zip((train_ds_anomaly, counter3))
 train_ds_rotated = train_ds_anomaly.concatenate(train_ds_to_rotate.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE))
 train_ds_rotated_flipped = train_ds_rotated.concatenate(train_ds_to_flip.map(flip, num_parallel_calls=tf.data.experimental.AUTOTUNE))
 
-shift_factors = np.random.randint(low = 10, high = 20, size = aug_size)
-counter4 = tf.data.Dataset.from_tensor_slices(shift_factors)
-train_ds_to_shift = tf.data.Dataset.zip((train_ds_rotated_flipped, counter4))
+#shift_factors = np.random.randint(low = 10, high = 20, size = aug_size).astype('float64')
+#shift_factors = shift_factors/100.
+#counter4 = tf.data.Dataset.from_tensor_slices(shift_factors)
+#train_ds_to_shift = tf.data.Dataset.zip((train_ds_rotated_flipped, counter4))
 
-train_ds_rotated_flipped_shifted = train_ds_rotated_flipped.concatenate(train_ds_to_shift.map(shift, num_parallel_calls=tf.data.experimental.AUTOTUNE))
+#train_ds_rotated_flipped_shifted = train_ds_rotated_flipped.concatenate(train_ds_to_shift.map(shift, num_parallel_calls=tf.data.experimental.AUTOTUNE))
 
-augmented = train_ds_rotated_flipped_shifted
+augmented = train_ds_rotated_flipped
 
 train_ds_normal = train_ds.filter(lambda x,y: y == 0.)
 
