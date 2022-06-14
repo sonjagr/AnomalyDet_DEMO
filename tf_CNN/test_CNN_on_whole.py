@@ -15,9 +15,9 @@ from sklearn.metrics import confusion_matrix
 
 tf.keras.backend.clear_session()
 
-gpu = '5'
+gpu = '1'
 #savename = 'testing_model3'
-savename = 'testing_model3_4_run2'
+savename = 'testing_model3_more_data_lr'
 batch_size = 512
 epoch = 150
 

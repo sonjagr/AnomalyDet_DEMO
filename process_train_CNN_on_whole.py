@@ -250,7 +250,7 @@ optimizer = tf.keras.optimizers.Nadam(learning_rate=lr)
 
 if load == 'True':
     print('Loading previously trained model...')
-    model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, cont_epoch))
+    model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, cont_epoch), compile=False)
     def scheduler(lr):
         return lr * tf.math.exp(-0.01)
 else:

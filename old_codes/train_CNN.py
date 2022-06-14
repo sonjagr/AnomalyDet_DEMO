@@ -69,7 +69,7 @@ if load == 'True':
 else:
     cont_epoch = 1
     training_scores, testing_scores = list(), list()
-    from CNNs import *
+    from old_codes.CNNs import *
     if model_ID == 'model_works_newdatasplit4':
         model = model_works_newdatasplit4
     if model_ID == 'model_maxpool':

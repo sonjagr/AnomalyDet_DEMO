@@ -70,7 +70,7 @@ def rounding_thresh(input, thresh):
 savename = 'more_normal_notf_1024_40'
 cont_epoch = 140
 
-base_dir = 'db/'
+base_dir = '../db/'
 dir_det = 'DET/'
 MTN = 19
 

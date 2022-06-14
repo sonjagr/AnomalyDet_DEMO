@@ -217,8 +217,6 @@ time1 = time.time()
 
 X_train_list_comb = np.append(X_train_det_list, X_train_normal_list)
 X_val_list_comb = np.append(X_val_det_list, X_val_normal_list)
-X_train_list_comb = [images_dir_loc + s for s in X_train_list_comb]
-X_val_list_comb = [images_dir_loc + s for s in X_val_list_comb]
 
 X_val_det_list = [images_dir_loc + s for s in X_val_det_list]
 X_train_det_list = [images_dir_loc + s for s in X_train_det_list]
@@ -226,6 +224,9 @@ X_train_normal_list = [images_dir_loc + s for s in X_train_normal_list]
 
 Y_train_list_comb = np.append(Y_train_det_list, Y_train_normal_list, axis =0)
 Y_val_list_comb = np.append(Y_val_det_list, Y_val_normal_list, axis =0)
+
+X_train_list_comb = [images_dir_loc + s for s in X_train_list_comb]
+X_val_list_comb = [images_dir_loc + s for s in X_val_list_comb]
 
 train_ds = create_cnn_dataset(X_train_list_comb, Y_train_list_comb, _shuffle=False)
 val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list, _shuffle=False)
