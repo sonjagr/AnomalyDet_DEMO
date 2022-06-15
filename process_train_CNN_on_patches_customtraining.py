@@ -1,11 +1,9 @@
 import numpy as np
-import os
 from helpers.dataset_helpers import create_cnn_dataset
 from old_codes.autoencoders import *
 import matplotlib.pyplot as plt
 import random, time, argparse
 import tensorflow as tf
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 tf.keras.backend.clear_session()
 
@@ -68,74 +66,6 @@ if use_ae:
     print('Loading autoencoder and data...')
     ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_TQ3_more_data/AE_TQ3_318_to_318_epochs')
 
-base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
-dir_det = 'DET/'
-dir_ae = 'AE/'
-images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
-
-## extract normal images for training
-X_train_list_ae = np.load(base_dir + dir_ae + 'X_train_AE.npy', allow_pickle=True)
-X_test_list_ae = np.load(base_dir + dir_ae + 'X_test_AE.npy', allow_pickle=True)
-
-np.random.seed(1)
-X_train_list_normal_to_remove = np.random.choice(X_train_list_ae, 16000, replace=False)
-X_test_val_list_normal_to_remove = np.random.choice(X_test_list_ae, 4000, replace=False)
-
-X_train_list_normal_removed = [x for x in X_train_list_ae if x not in X_train_list_normal_to_remove]
-X_test_list_normal_removed = [x for x in X_test_list_ae if x not in X_test_val_list_normal_to_remove]
-
-## load the images containing anomalies
-X_train_det_list = np.load(base_dir + dir_det + 'X_train_DET_very_cleaned.npy', allow_pickle=True)
-X_val_det_list = np.load(base_dir + dir_det + 'X_test_DET_very_cleaned.npy', allow_pickle=True)
-X_train_det_list = [images_dir_loc + s for s in X_train_det_list]
-X_val_det_list = [images_dir_loc + s for s in X_val_det_list]
-
-Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET_very_cleaned.npy', allow_pickle=True).tolist()
-Y_val_det_list = np.load(base_dir + dir_det + 'Y_test_DET_very_cleaned.npy', allow_pickle=True).tolist()
-
-## split test and validation sets
-N_det_val = int(len(X_val_det_list)/2)
-N_det_train = len(X_train_det_list)
-X_val_det_list = X_val_det_list[:N_det_val]
-Y_val_det_list = Y_val_det_list[:N_det_val]
-
-X_train_normal_list = np.random.choice(X_train_list_normal_removed, int(N_det_train), replace=False)
-X_val_normal_list = np.random.choice(X_test_list_normal_removed, int(N_det_val), replace=False)
-X_train_normal_list = [images_dir_loc + s for s in X_train_normal_list]
-X_val_normal_list = [images_dir_loc + s for s in X_val_normal_list]
-
-print('    Loaded number of train, val samples: ', N_det_train, N_det_val)
-print('All loaded. Starting dataset creation...')
-time1 = time.time()
-
-## combine anomalous and normal images
-X_train_list = np.append(X_train_det_list, X_train_normal_list)
-X_val_list = np.append(X_val_det_list, X_val_normal_list)
-
-Y_train_list = np.append(Y_train_det_list, np.full((int(len(X_train_normal_list)), 408), 0.), axis = 0)
-Y_val_list = np.append(Y_val_det_list, np.full((int(len(X_val_normal_list)), 408), 0.), axis = 0)
-
-## only with defects
-train_ds = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=False)
-val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list, _shuffle=False)
-
-## with normal images
-more_normal_train_ds = create_cnn_dataset(X_train_list, Y_train_list, _shuffle=False)
-more_normal_val_ds = create_cnn_dataset(X_val_list, Y_val_list, _shuffle=False)
-
-#train_ds = more_normal_train_ds
-#val_ds = more_normal_val_ds
-
-METRICS = [
-      tf.keras.metrics.TruePositives(name='tp'),
-      tf.keras.metrics.FalsePositives(name='fp'),
-      tf.keras.metrics.TrueNegatives(name='tn'),
-      tf.keras.metrics.FalseNegatives(name='fn'),
-      tf.keras.metrics.Precision(name='precision'),
-      tf.keras.metrics.Recall(name='recall'),
-      tf.keras.metrics.AUC(name='auc'),
-      tf.keras.metrics.AUC(name='prc', curve='PR'),
-]
 
 def plot_metrics(history):
     colors = ['blue','red']
@@ -161,56 +91,145 @@ def plot_metrics(history):
 
 def plot_examples(ds):
     for x, y in ds:
-        x = tf.reshape(x, [160, 160, 3])
-        x = x.numpy()
-        plt.imshow(x.astype('uint8'), vmin = 0, vmax = 200.)
+        x = tf.reshape(x, [160, 160, 1])
+        plt.imshow(x, vmin = 0, vmax = 200.)
         plt.title(str(y))
         plt.show()
 
-import cv2
-## convert bayer to rgb
-def bayer2rgb(bayer):
-    rgb = cv2.cvtColor(bayer.numpy().reshape(2720, 3840).astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
-    return rgb
+base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
+dir_det = 'DET/'
+dir_ae = 'AE/'
+images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 
-## a wrapper for bayer2rgb
-def tf_bayer2rgb(bayer):
-    rgb = tf.py_function(bayer2rgb, [bayer], [tf.float32])
-    return rgb
+## extract normal images for training
+X_train_list_ae = np.load(base_dir + dir_ae + 'X_train_AE.npy', allow_pickle=True)
+X_test_list_ae = np.load(base_dir + dir_ae + 'X_test_AE.npy', allow_pickle=True)
+
+np.random.seed(1)
+X_train_list_normal_to_remove = np.random.choice(X_train_list_ae, 1600, replace=False)
+X_test_val_list_normal_to_remove = np.random.choice(X_test_list_ae, 4000, replace=False)
+
+X_train_list_normal_removed = [x for x in X_train_list_ae if x not in X_train_list_normal_to_remove]
+X_test_list_normal_removed = [x for x in X_test_list_ae if x not in X_test_val_list_normal_to_remove]
+
+## load the images containing anomalies
+X_train_det_list = np.load(base_dir + dir_det + 'X_train_DET_very_cleaned.npy', allow_pickle=True)
+X_val_det_list = np.load(base_dir + dir_det + 'X_test_DET_very_cleaned.npy', allow_pickle=True)
+X_train_det_list = [images_dir_loc + s for s in X_train_det_list]
+X_val_det_list = [images_dir_loc + s for s in X_val_det_list]
+
+Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET_very_cleaned.npy', allow_pickle=True).tolist()
+Y_val_det_list = np.load(base_dir + dir_det + 'Y_test_DET_very_cleaned.npy', allow_pickle=True).tolist()
+
+## split test and validation sets
+N_det_val = int(len(X_val_det_list)/2)
+N_det_train = len(X_train_det_list)
+X_val_det_list = X_val_det_list[:N_det_val]
+Y_val_det_list = Y_val_det_list[:N_det_val]
+
+np.random.seed(42)
+X_train_normal_list = np.random.choice(X_train_list_normal_removed, int(N_det_train), replace=False)
+X_val_normal_list = np.random.choice(X_test_list_normal_removed, int(N_det_val), replace=False)
+X_train_normal_list = [images_dir_loc + s for s in X_train_normal_list]
+X_val_normal_list = [images_dir_loc + s for s in X_val_normal_list]
+
+print('    Loaded number of train, val samples: ', N_det_train, N_det_val)
+print('All loaded. Starting dataset creation...')
+time1 = time.time()
+
+## combine anomalous and normal images
+X_train_list = np.append(X_train_det_list, X_train_normal_list)
+X_val_list = np.append(X_val_det_list, X_val_normal_list)
+
+Y_train_list = np.append(Y_train_det_list, np.full((int(len(X_train_normal_list)), 408), 0.), axis = 0)
+Y_val_list = np.append(Y_val_det_list, np.full((int(len(X_val_normal_list)), 408), 0.), axis = 0)
+
+## only with defects
+train_ds = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=False)
+val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list, _shuffle=False)
+
+normal_normal_train_ds = create_cnn_dataset(X_train_normal_list, np.full((int(len(X_train_normal_list)), 408), 0.), _shuffle=False)
+
+## with normal images
+more_normal_train_ds = create_cnn_dataset(X_train_list, Y_train_list, _shuffle=False)
+more_normal_val_ds = create_cnn_dataset(X_val_list, Y_val_list, _shuffle=False)
+
+#train_ds = more_normal_train_ds
+#val_ds = more_normal_val_ds
+
+METRICS = [
+      tf.keras.metrics.TruePositives(name='tp'),
+      tf.keras.metrics.FalsePositives(name='fp'),
+      tf.keras.metrics.TrueNegatives(name='tn'),
+      tf.keras.metrics.FalseNegatives(name='fn'),
+      tf.keras.metrics.Precision(name='precision'),
+      tf.keras.metrics.Recall(name='recall'),
+      tf.keras.metrics.AUC(name='auc'),
+      tf.keras.metrics.AUC(name='prc', curve='PR'),
+]
+
+if load == 'True':
+    print('    Loading previously trained model...')
+    model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, cont_epoch))
+    def scheduler(lr):
+        return lr * tf.math.exp(-0.01)
+else:
+    from new_CNNs import *
+    if model_ID == 'model_tf':
+        model = model_tf
+    if model_ID == 'model_2':
+        model = model_2
+    if model_ID == 'model_3':
+        model = model_3
+    if model_ID == 'model_4':
+        model = model_4
+    if model_ID == 'model_whole':
+        model = model_whole
+    if model_ID == 'model_whole_smaller':
+        model = model_whole_smaller
+    if model_ID == 'model_whole_larger':
+        model = model_whole_larger
+    def scheduler(epoch, lr):
+        if epoch < 50:
+            return lr
+        else:
+            return lr * tf.math.exp(-0.1)
 
 @tf.function
 def encode(img, lbl, ae):
-    img = tf.reshape(img, [-1, 2720, 3840, 1])
-    img_rgb = tf_bayer2rgb(img)
+    img = tf.reshape(img, [-1, 2720, 3840, INPUT_DIM])
     encoded_img = ae.encode(img)
     decoded_img = ae.decode(encoded_img)
-    decoded_img_rgb = tf_bayer2rgb(decoded_img)
-    aed_img = tf.abs(tf.subtract(img_rgb, decoded_img_rgb))
+    aed_img = tf.abs(tf.subtract(img, decoded_img))
     return aed_img, lbl
 
 @tf.function
 def format_data(image, label):
-    image = tf.reshape(image, [160, 160, 3])
+    image = tf.reshape(image, [160, 160, 1])
     label = tf.cast(label, tf.float32)
     return image, label
 
 @tf.function
 def crop(img, lbl):
-    img = tf.reshape(img, [-1, 2736, 3840, 1])
+    img = tf.reshape(img, [-1, 2736, 3840, INPUT_DIM])
     img = tf.keras.layers.Cropping2D(cropping=((0, 16), (0, 0)))(img)
     return img, lbl
+
+@tf.function
+def process_crop_encode(image, label):
+    image, label = crop(image, label)
+    image, label = encode(image, label, ae)
+    return image,label
 
 @tf.function
 def bright_encode(img, lbl, ae, delta):
     img = tf.cast(img, tf.float64)
     img = tf.math.multiply(img, delta)
     img = tf.cast(img, tf.float32)
-    img = tf.reshape(img, [-1, 2720, 3840, 1])
+    img = tf.reshape(img, [-1, 2720, 3840, INPUT_DIM])
     encoded_img = ae.encode(img)
     decoded_img = ae.decode(encoded_img)
-    img_rgb = tf_bayer2rgb(img)
-    decoded_img_rgb = tf_bayer2rgb(decoded_img)
-    aed_img = tf.abs(tf.subtract(img_rgb, decoded_img_rgb))
+    aed_img = tf.abs(tf.subtract(img, decoded_img))
     return aed_img, lbl
 
 @tf.function
@@ -221,21 +240,29 @@ def process_crop_bright_encode(image_label, delta):
     return image,label
 
 @tf.function
+def rotate(image_label, rots):
+    image, label = image_label
+    image = tf.reshape(image, [160, 160, 1])
+    rot = tf.image.rot90(image, k=rots)
+    return tf.reshape(rot, [160,160,1]), label
+
+@tf.function
 def flip(image_label, seed):
     image, label = image_label
-    image = tf.reshape(image, [160, 160, 3])
+    image = tf.reshape(image, [160, 160, 1])
     if seed > 5:
         flipped = tf.image.flip_left_right(image)
     else:
         flipped = tf.image.flip_up_down(image)
-    return tf.reshape(flipped, [160,160,3]), label
+    return tf.reshape(flipped, [160,160,1]), label
 
 @tf.function
-def rotate(image_label, rots):
+def shift(image_label, factor):
     image, label = image_label
-    image = tf.reshape(image, [160, 160, 3])
-    rot = tf.image.rot90(image, k=rots)
-    return tf.reshape(rot, [160,160,3]), label
+    image = tf.reshape(image, [160, 160, 1])
+    shifted = tf.keras.layers.experimental.preprocessing.RandomTranslation(height_factor=factor, width_factor=factor, fill_mode='reflect', interpolation='bilinear')
+    image = shifted
+    return tf.reshape(shifted, [160,160,1]), label
 
 @tf.function
 def process_crop_encode(image, label):
@@ -251,7 +278,7 @@ def process_crop(image, label):
 @tf.function
 def patch_images(img, lbl):
     split_img = tf.image.extract_patches(images=img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1], rates=[1, 1, 1, 1], padding='VALID')
-    re = tf.reshape(split_img, [17*24, 160 *160, 3])
+    re = tf.reshape(split_img, [17*24, 160 *160])
     lbl = tf.reshape(lbl, [17*24])
     patch_ds = tf.data.Dataset.from_tensors((re, lbl))
     return patch_ds
@@ -304,9 +331,17 @@ train_ds_to_flip = tf.data.Dataset.zip((train_ds_anomaly, counter3))
 train_ds_rotated = train_ds_anomaly.concatenate(train_ds_to_rotate.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE))
 train_ds_rotated_flipped = train_ds_rotated.concatenate(train_ds_to_flip.map(flip, num_parallel_calls=tf.data.experimental.AUTOTUNE))
 
+## shift does not work because it might shift some anomalies out of image, same with zoom/crop...
+#shift_factors = np.random.randint(low = 10, high = 20, size = aug_size).astype('float64')
+#shift_factors = shift_factors/100.
+#counter4 = tf.data.Dataset.from_tensor_slices(shift_factors)
+#train_ds_to_shift = tf.data.Dataset.zip((train_ds_rotated_flipped, counter4))
+
+#train_ds_rotated_flipped_shifted = train_ds_rotated_flipped.concatenate(train_ds_to_shift.map(shift, num_parallel_calls=tf.data.experimental.AUTOTUNE))
+
 augmented = train_ds_rotated_flipped
 
-train_ds_normal = train_ds.filter(lambda x,y: y == 0.).take((nbr_anom_patches*6)*20)
+train_ds_normal = train_ds.filter(lambda x,y: y == 0.)
 
 train_ds_final = train_ds_normal.concatenate(augmented)
 train_ds_final = train_ds_final.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -314,8 +349,9 @@ val_ds = val_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUN
 
 train_ds_anomaly = train_ds_final.filter(lambda x, y:  y == 1.)
 
-normal, anomalous = (nbr_anom_patches*6)*20, 6*nbr_anom_patches
+normal, anomalous = len(Y_train_det_list)*408-nbr_anom_patches, 6*nbr_anom_patches
 #normal, anomalous = len(list(train_ds_normal)), len(list(augmented))
+#normal, anomalous = 452413, 5132
 anomaly_weight = normal/anomalous
 print('    Number of normal, anomalous samples: ', normal, anomalous)
 print('    Anomaly weight: ', anomaly_weight)
@@ -333,24 +369,7 @@ time2 = time.time()
 pro_time = time2-time1
 print('Dataset (time {:.2f} s) created, starting training...'.format(pro_time))
 
-optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
-
-if load == 'True':
-    print('    Loading previously trained model...')
-    model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, cont_epoch))
-    def scheduler(lr):
-        return lr * tf.math.exp(-0.01)
-else:
-    from new_CNNs import *
-    if model_ID == 'model_whole_rgb':
-        model = model_whole_rgb
-    if model_ID == 'model_smaller_rgb':
-        model = model_smaller_rgb
-    def scheduler(epoch, lr):
-        if epoch < 50:
-            return lr
-        else:
-            return lr * tf.math.exp(-0.01)
+optimizer = tf.keras.optimizers.Nadam(learning_rate=lr)
 
 print(model.summary())
 model.compile(optimizer = optimizer, loss = tf.keras.losses.BinaryCrossentropy(from_logits=False), metrics=METRICS)
@@ -371,8 +390,67 @@ history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=lo
 lr_schedule = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
 print('Starting training:')
-history = model.fit(train_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), epochs = num_epochs, validation_data = val_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), class_weight=class_weights, callbacks = [checkpoint_callback, history_logger, lr_schedule])
-print('Training finished, plotting...')
 
-plot_metrics(history)
+def dyn_weighted_bincrossentropy(true, pred):
+    num_pred = tf.keras.backend.sum(tf.keras.backend.cast(pred < 0.5, true.dtype)) + tf.keras.backend.sum(true)
+    zero_weight = tf.keras.backend.sum(true) / num_pred + tf.keras.backend.epsilon()
+    one_weight = tf.keras.backend.sum(tf.keras.backend.cast(pred < 0.5, true.dtype)) / num_pred + tf.keras.backend.epsilon()
+    weights = (1.0 - true) * zero_weight + true * one_weight
+    bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+    bin_crossentropy =bce(true, pred)
+
+    weighted_bin_crossentropy = weights * bin_crossentropy
+    return tf.keras.backend.mean(weighted_bin_crossentropy)
+
+def loss(model, x, y, training):
+  y_ = model(x, training=training)
+  return dyn_weighted_bincrossentropy(true=y, pred=y_)
+
+def grad(model, inputs, targets):
+  with tf.GradientTape() as tape:
+    loss_value = loss(model, inputs, targets, training=True)
+  return loss_value, tape.gradient(loss_value, model.trainable_variables)
+
+train_loss_results = []
+train_pres_results = []
+train_recall_results = []
+train_auc_results = []
+
+for epoch in range(num_epochs):
+    epoch_loss_avg = tf.keras.metrics.Mean(),
+    epoch_pres = tf.keras.metrics.Precision(name='precision'),
+    epoch_recall = tf.keras.metrics.Recall(name='recall'),
+    epoch_auc = tf.keras.metrics.AUC(name='auc'),
+
+    for x, y in train_ds_batch.prefetch(tf.data.experimental.AUTOTUNE):
+        loss_value, grads = grad(model, x, y)
+        optimizer.apply_gradients(zip(grads, model.trainable_variables))
+
+        epoch_loss_avg.update_state(loss_value)  # Add current batch loss
+        epoch_pres.update_state(y, model(x, training=True))
+        epoch_recall.update_state(y, model(x, training=True))
+        epoch_auc.update_state(y, model(x, training=True))
+
+    train_loss_results.append(epoch_loss_avg.result())
+    train_pres_results.append(epoch_pres.result())
+    train_recall_results.append(epoch_recall.result())
+    train_auc_results.append(epoch_auc.result())
+
+    print("TRAINING Epoch {:03d}: Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3%}, AUC: {:.3%} ".format(epoch, epoch_loss_avg.result(), epoch_pres.result(), epoch_recall.result(), epoch_auc.result()))
+
+    test_loss = loss(training=False)
+    test_pres = tf.keras.metrics.Precision()
+    test_recall = tf.keras.metrics.Recall()
+
+    for (x, y) in val_ds_batch.prefetch(tf.data.experimental.AUTOTUNE):
+        logits = model(x, training=False)
+        prediction = tf.math.argmax(logits, axis=1, output_type=tf.int64)
+        test_loss = test_loss(y, prediction)
+        test_pres(prediction, y)
+        test_recall(prediction, y)
+
+    print("Test set loss: {:.3%}, precision: {:.3%}, recall: {:.3%}".format(test_loss.result(), test_pres.result(), test_recall.result()))
+
+print('Training finished')
+
 

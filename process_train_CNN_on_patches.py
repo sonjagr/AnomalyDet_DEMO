@@ -67,6 +67,36 @@ if use_ae:
     print('Loading autoencoder and data...')
     ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_TQ3_more_data/AE_TQ3_318_to_318_epochs')
 
+
+def plot_metrics(history):
+    colors = ['blue','red']
+    metrics = ['loss', 'prc', 'precision', 'recall']
+    for n, metric in enumerate(metrics):
+        name = metric.replace("_"," ").capitalize()
+        plt.subplot(2,2,n+1)
+        plt.plot(history.epoch, history.history[metric], color=colors[0], label='Train')
+        plt.plot(history.epoch, history.history['val_'+metric], color=colors[1], linestyle="--", label='Val')
+        plt.xlabel('Epoch')
+        plt.ylabel(name)
+        if metric == 'loss':
+            plt.ylim([0, plt.ylim()[1]])
+        elif metric == 'auc':
+            plt.ylim([0.8,1])
+        else:
+            plt.ylim([0,1])
+        plt.grid()
+        plt.legend()
+    plt.tight_layout()
+    plt.savefig('saved_CNNs/%s/training.png' % savename, dpi = 600)
+    plt.show()
+
+def plot_examples(ds):
+    for x, y in ds:
+        x = tf.reshape(x, [160, 160, 1])
+        plt.imshow(x, vmin = 0, vmax = 200.)
+        plt.title(str(y))
+        plt.show()
+
 base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
 dir_det = 'DET/'
 dir_ae = 'AE/'
@@ -98,9 +128,10 @@ N_det_train = len(X_train_det_list)
 X_val_det_list = X_val_det_list[:N_det_val]
 Y_val_det_list = Y_val_det_list[:N_det_val]
 
-random_select = int(N_det_train)*2
-X_train_normal_list = np.random.choice(X_train_list_normal_removed, int(N_det_train)*2, replace=False)
-X_val_normal_list = np.random.choice(X_test_list_normal_removed, int(N_det_val)*2, replace=False)
+np.random.seed(42)
+X_train_normal_list = np.random.choice(X_train_list_normal_removed, int(N_det_train), replace=False)
+X_val_normal_list = np.random.choice(X_test_list_normal_removed, int(N_det_val), replace=False)
+
 X_train_normal_list = [images_dir_loc + s for s in X_train_normal_list]
 X_val_normal_list = [images_dir_loc + s for s in X_val_normal_list]
 
@@ -109,8 +140,8 @@ print('All loaded. Starting dataset creation...')
 time1 = time.time()
 
 ## combine anomalous and normal images
-X_train_list = np.append(X_train_det_list, X_train_normal_list)
-X_val_list = np.append(X_val_det_list, X_val_normal_list)
+X_train_list = np.append(X_train_det_list, X_train_normal_list, axis = 0)
+X_val_list = np.append(X_val_det_list, X_val_normal_list, axis = 0)
 
 Y_train_list = np.append(Y_train_det_list, np.full((int(len(X_train_normal_list)), 408), 0.), axis = 0)
 Y_val_list = np.append(Y_val_det_list, np.full((int(len(X_val_normal_list)), 408), 0.), axis = 0)
@@ -146,14 +177,6 @@ if load == 'True':
         return lr * tf.math.exp(-0.01)
 else:
     from new_CNNs import *
-    if model_ID == 'model_tf':
-        model = model_tf
-    if model_ID == 'model_2':
-        model = model_2
-    if model_ID == 'model_3':
-        model = model_3
-    if model_ID == 'model_4':
-        model = model_4
     if model_ID == 'model_whole':
         model = model_whole
     if model_ID == 'model_whole_smaller':
@@ -164,36 +187,7 @@ else:
         if epoch < 50:
             return lr
         else:
-            return lr * tf.math.exp(-0.1)
-
-def plot_metrics(history):
-    colors = ['blue','red']
-    metrics = ['loss', 'prc', 'precision', 'recall']
-    for n, metric in enumerate(metrics):
-        name = metric.replace("_"," ").capitalize()
-        plt.subplot(2,2,n+1)
-        plt.plot(history.epoch, history.history[metric], color=colors[0], label='Train')
-        plt.plot(history.epoch, history.history['val_'+metric], color=colors[1], linestyle="--", label='Val')
-        plt.xlabel('Epoch')
-        plt.ylabel(name)
-        if metric == 'loss':
-            plt.ylim([0, plt.ylim()[1]])
-        elif metric == 'auc':
-            plt.ylim([0.8,1])
-        else:
-            plt.ylim([0,1])
-        plt.grid()
-        plt.legend()
-    plt.tight_layout()
-    plt.savefig('saved_CNNs/%s/training.png' % savename, dpi = 600)
-    plt.show()
-
-def plot_examples(ds):
-    for x, y in ds:
-        x = tf.reshape(x, [160, 160, 1])
-        plt.imshow(x, vmin = 0, vmax = 200.)
-        plt.title(str(y))
-        plt.show()
+            return lr * tf.math.exp(-0.01)
 
 @tf.function
 def encode(img, lbl, ae):
@@ -295,7 +289,7 @@ if not use_ae:
 np.random.seed(42)
 
 if bright_aug:
-    brightnesses = np.random.uniform(low = 0.5, high = 0.9, size = np.array(Y_train_det_list).shape[0])
+    brightnesses = np.random.uniform(low = 0.7, high = 0.9, size = np.array(Y_train_det_list).shape[0])
     counter1 = tf.data.Dataset.from_tensor_slices(brightnesses)
     train_ds_c = tf.data.Dataset.zip((train_ds, counter1))
     train_ds_brightness = train_ds_c.map(lambda x,z: process_crop_bright_encode(x,z), num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -331,6 +325,7 @@ train_ds_to_flip = tf.data.Dataset.zip((train_ds_anomaly, counter3))
 train_ds_rotated = train_ds_anomaly.concatenate(train_ds_to_rotate.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE))
 train_ds_rotated_flipped = train_ds_rotated.concatenate(train_ds_to_flip.map(flip, num_parallel_calls=tf.data.experimental.AUTOTUNE))
 
+## shift does not work because it might shift some anomalies out of image, same with zoom/crop...
 #shift_factors = np.random.randint(low = 10, high = 20, size = aug_size).astype('float64')
 #shift_factors = shift_factors/100.
 #counter4 = tf.data.Dataset.from_tensor_slices(shift_factors)
@@ -348,9 +343,8 @@ val_ds = val_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUN
 
 train_ds_anomaly = train_ds_final.filter(lambda x, y:  y == 1.)
 
-#normal, anomalous = len(Y_train_det_list)*408-nbr_anom_patches, 4*nbr_anom_patches
+#normal, anomalous = len(Y_train_det_list)*408-nbr_anom_patches, 6*nbr_anom_patches
 normal, anomalous = len(list(train_ds_normal)), len(list(augmented))
-#normal, anomalous = 452413, 5132
 anomaly_weight = normal/anomalous
 print('    Number of normal, anomalous samples: ', normal, anomalous)
 print('    Anomaly weight: ', anomaly_weight)
@@ -368,7 +362,7 @@ time2 = time.time()
 pro_time = time2-time1
 print('Dataset (time {:.2f} s) created, starting training...'.format(pro_time))
 
-optimizer = tf.keras.optimizers.Nadam(learning_rate=lr)
+optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
 print(model.summary())
 model.compile(optimizer = optimizer, loss = tf.keras.losses.BinaryCrossentropy(from_logits=False), metrics=METRICS)
