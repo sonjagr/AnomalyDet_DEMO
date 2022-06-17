@@ -141,7 +141,7 @@ def comparison_plot(checkpoint_loc, list_of_models, colors=['r', 'b' ,'g', 'oran
     plt.show()
 
 checkpoints_loc = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints'
-list_of_models = ['TQ3_1_cont']
+list_of_models = ['TQ3_more_data']
 
 base_dir = 'db/'
 dir_det = 'DET/'
@@ -190,11 +190,7 @@ def classifier_scores(test_loss, train_loss):
     plt.ylabel('Binary cross-entropy')
     plt.show()
 
-#mnbr = 'testing_all_data'
-#test_loss = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/losses/%s/test_loss_%s.npy' % (mnbr,mnbr))
-#train_loss = np.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/losses/%s/train_loss_%s.npy' % (mnbr,mnbr))
-#classifier_scores(test_loss, train_loss)
-#comparison_plot(checkpoints_loc, list_of_models)
+comparison_plot(checkpoints_loc, list_of_models)
 
 plotting_dataset = def_dataset.shuffle(100, seed = 1).take(5)
 #plot_aed(plotting_dataset, 1)

@@ -1,6 +1,8 @@
 import numpy as np
 import os
+INPUT_DIM = 3
 from helpers.dataset_helpers import create_cnn_dataset
+from helpers.cnn_helpers import rotate, format_data, bayer2rgb, tf_bayer2rgb, patch_images, flip, plot_metrics, plot_examples, crop, bright_encode_rgb, encode_rgb
 from old_codes.autoencoders import *
 import matplotlib.pyplot as plt
 import random, time, argparse
@@ -26,10 +28,10 @@ parser.add_argument("--load", type=str,
                     help="Load old model or not", default = "False", required=True)
 parser.add_argument("--contfromepoch", type=int,
                     help="Epoch to continue training from", default=1, required=False)
-parser.add_argument("--use_ae", type=bool,
-                    help="use ae or not", default=True, required=False)
-parser.add_argument("--bright_aug", type=bool,
-                    help="augment brighness or not", default=True, required=False)
+parser.add_argument("--use_ae", type=str,
+                    help="use ae or not", default='True', required=False)
+parser.add_argument("--bright_aug", type=str,
+                    help="augment brighness or not", default='True', required=False)
 
 args = parser.parse_args()
 
@@ -85,13 +87,13 @@ X_train_list_normal_removed = [x for x in X_train_list_ae if x not in X_train_li
 X_test_list_normal_removed = [x for x in X_test_list_ae if x not in X_test_val_list_normal_to_remove]
 
 ## load the images containing anomalies
-X_train_det_list = np.load(base_dir + dir_det + 'X_train_DET_very_cleaned.npy', allow_pickle=True)
-X_val_det_list = np.load(base_dir + dir_det + 'X_test_DET_very_cleaned.npy', allow_pickle=True)
+X_train_det_list = np.load(base_dir + dir_det + 'X_train_DET_2.npy', allow_pickle=True)
+X_val_det_list = np.load(base_dir + dir_det + 'X_test_DET_2.npy', allow_pickle=True)
 X_train_det_list = [images_dir_loc + s for s in X_train_det_list]
 X_val_det_list = [images_dir_loc + s for s in X_val_det_list]
 
-Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET_very_cleaned.npy', allow_pickle=True).tolist()
-Y_val_det_list = np.load(base_dir + dir_det + 'Y_test_DET_very_cleaned.npy', allow_pickle=True).tolist()
+Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET_2.npy', allow_pickle=True).tolist()
+Y_val_det_list = np.load(base_dir + dir_det + 'Y_test_DET_2.npy', allow_pickle=True).tolist()
 
 ## split test and validation sets
 N_det_val = int(len(X_val_det_list)/2)
@@ -112,8 +114,9 @@ time1 = time.time()
 X_train_list = np.append(X_train_det_list, X_train_normal_list)
 X_val_list = np.append(X_val_det_list, X_val_normal_list)
 
-Y_train_list = np.append(Y_train_det_list, np.full((int(len(X_train_normal_list)), 408), 0.), axis = 0)
-Y_val_list = np.append(Y_val_det_list, np.full((int(len(X_val_normal_list)), 408), 0.), axis = 0)
+shape_for_normal = list(np.shape(Y_train_det_list)[1:])
+Y_train_list = np.append(Y_train_det_list, np.full((int(len(X_train_normal_list)), shape_for_normal[0], shape_for_normal[1]), 0.), axis = 0)
+Y_val_list = np.append(Y_val_det_list, np.full((int(len(X_val_normal_list)),  shape_for_normal[0], shape_for_normal[1]), 0.), axis = 0)
 
 ## only with defects
 train_ds = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=False)
@@ -137,137 +140,38 @@ METRICS = [
       tf.keras.metrics.AUC(name='prc', curve='PR'),
 ]
 
-def plot_metrics(history):
-    colors = ['blue','red']
-    metrics = ['loss', 'prc', 'precision', 'recall']
-    for n, metric in enumerate(metrics):
-        name = metric.replace("_"," ").capitalize()
-        plt.subplot(2,2,n+1)
-        plt.plot(history.epoch, history.history[metric], color=colors[0], label='Train')
-        plt.plot(history.epoch, history.history['val_'+metric], color=colors[1], linestyle="--", label='Val')
-        plt.xlabel('Epoch')
-        plt.ylabel(name)
-        if metric == 'loss':
-            plt.ylim([0, plt.ylim()[1]])
-        elif metric == 'auc':
-            plt.ylim([0.8,1])
-        else:
-            plt.ylim([0,1])
-        plt.grid()
-        plt.legend()
-    plt.tight_layout()
-    plt.savefig('saved_CNNs/%s/training.png' % savename, dpi = 600)
-    plt.show()
-
-def plot_examples(ds):
-    for x, y in ds:
-        x = tf.reshape(x, [160, 160, 3])
-        x = x.numpy()
-        plt.imshow(x.astype('uint8'), vmin = 0, vmax = 200.)
-        plt.title(str(y))
-        plt.show()
-
-import cv2
-## convert bayer to rgb
-def bayer2rgb(bayer):
-    rgb = cv2.cvtColor(bayer.numpy().reshape(2720, 3840).astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
-    return rgb
-
-## a wrapper for bayer2rgb
-def tf_bayer2rgb(bayer):
-    rgb = tf.py_function(bayer2rgb, [bayer], [tf.float32])
-    return rgb
-
-@tf.function
-def encode(img, lbl, ae):
-    img = tf.reshape(img, [-1, 2720, 3840, 1])
-    img_rgb = tf_bayer2rgb(img)
-    encoded_img = ae.encode(img)
-    decoded_img = ae.decode(encoded_img)
-    decoded_img_rgb = tf_bayer2rgb(decoded_img)
-    aed_img = tf.abs(tf.subtract(img_rgb, decoded_img_rgb))
-    return aed_img, lbl
-
-@tf.function
-def format_data(image, label):
-    image = tf.reshape(image, [160, 160, 3])
-    label = tf.cast(label, tf.float32)
-    return image, label
-
-@tf.function
-def crop(img, lbl):
-    img = tf.reshape(img, [-1, 2736, 3840, 1])
-    img = tf.keras.layers.Cropping2D(cropping=((0, 16), (0, 0)))(img)
-    return img, lbl
-
-@tf.function
-def bright_encode(img, lbl, ae, delta):
-    img = tf.cast(img, tf.float64)
-    img = tf.math.multiply(img, delta)
-    img = tf.cast(img, tf.float32)
-    img = tf.reshape(img, [-1, 2720, 3840, 1])
-    encoded_img = ae.encode(img)
-    decoded_img = ae.decode(encoded_img)
-    img_rgb = tf_bayer2rgb(img)
-    decoded_img_rgb = tf_bayer2rgb(decoded_img)
-    aed_img = tf.abs(tf.subtract(img_rgb, decoded_img_rgb))
-    return aed_img, lbl
-
 @tf.function
 def process_crop_bright_encode(image_label, delta):
     image, label = image_label
     image, label = crop(image, label)
-    image, label = bright_encode(image, label, ae, delta)
+    image, label = bright_encode_rgb(image, label, ae, delta)
     return image,label
-
-@tf.function
-def flip(image_label, seed):
-    image, label = image_label
-    image = tf.reshape(image, [160, 160, 3])
-    if seed > 5:
-        flipped = tf.image.flip_left_right(image)
-    else:
-        flipped = tf.image.flip_up_down(image)
-    return tf.reshape(flipped, [160,160,3]), label
-
-@tf.function
-def rotate(image_label, rots):
-    image, label = image_label
-    image = tf.reshape(image, [160, 160, 3])
-    rot = tf.image.rot90(image, k=rots)
-    return tf.reshape(rot, [160,160,3]), label
 
 @tf.function
 def process_crop_encode(image, label):
     image, label = crop(image, label)
-    image, label = encode(image, label, ae)
+    image, label = encode_rgb(image, label, ae)
     return image,label
 
 @tf.function
 def process_crop(image, label):
     image, label = crop(image, label)
+    image = tf_bayer2rgb(image)
     return image,label
 
-@tf.function
-def patch_images(img, lbl):
-    split_img = tf.image.extract_patches(images=img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1], rates=[1, 1, 1, 1], padding='VALID')
-    re = tf.reshape(split_img, [17*24, 160 *160, 3])
-    lbl = tf.reshape(lbl, [17*24])
-    patch_ds = tf.data.Dataset.from_tensors((re, lbl))
-    return patch_ds
-
-if use_ae:
+if use_ae == 'True':
+    print('    Applying autoencoding')
     train_ds_nob = train_ds.map(process_crop_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     val_ds = val_ds.map(process_crop_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-
-if not use_ae:
+if use_ae == 'False':
+    print('    Not applying autoencoding')
     train_ds_nob = train_ds.map(process_crop, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     val_ds = val_ds.map(process_crop, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
 ## add changes in brighness
 np.random.seed(42)
 
-if bright_aug:
+if bright_aug == 'True':
     brightnesses = np.random.uniform(low = 0.7, high = 0.9, size = np.array(Y_train_det_list).shape[0])
     counter1 = tf.data.Dataset.from_tensor_slices(brightnesses)
     train_ds_c = tf.data.Dataset.zip((train_ds, counter1))
@@ -280,17 +184,16 @@ val_ds = val_ds.flat_map(patch_images).unbatch()
 
 train_ds_anomaly = train_ds.filter(lambda x, y:  y == 1.)
 
-if bright_aug:
+if bright_aug == 'True':
     train_ds_brightness_anomaly = train_ds_brightness.filter(lambda x, y:  y == 1.)
     train_ds_anomaly = train_ds_anomaly.concatenate(train_ds_brightness_anomaly)
 
-nbr_anom_patches = 1283
 nbr_anom_patches = len(list(train_ds.filter(lambda x, y:  y == 1.)))
 print('    Number of anomalous patches: ', nbr_anom_patches)
 
-if bright_aug:
+if bright_aug == 'True':
     aug_size = 2*nbr_anom_patches
-if not bright_aug:
+if bright_aug != 'True':
     aug_size = nbr_anom_patches
 
 rotations = np.random.randint(low = 1, high = 4, size = aug_size).astype('int32')
@@ -306,9 +209,11 @@ train_ds_rotated_flipped = train_ds_rotated.concatenate(train_ds_to_flip.map(fli
 
 augmented = train_ds_rotated_flipped
 
-train_ds_normal = train_ds.filter(lambda x,y: y == 0.).take((nbr_anom_patches*6)*20)
+mean_error = 20.5
+train_ds_normal = train_ds.filter(lambda x,y: y == 0.).shuffle(30000)
+train_ds_normal_le = train_ds_normal.filter(lambda x, y: tf.reduce_mean(x) > mean_error).take((nbr_anom_patches*6)*20)
 
-train_ds_final = train_ds_normal.concatenate(augmented)
+train_ds_final = train_ds_normal_le.concatenate(augmented)
 train_ds_final = train_ds_final.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 val_ds = val_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
@@ -346,6 +251,8 @@ else:
         model = model_whole_rgb
     if model_ID == 'model_smaller_rgb':
         model = model_smaller_rgb
+    if model_ID == 'model_super_small_rgb':
+        model = model_super_small_rgb
     def scheduler(epoch, lr):
         if epoch < 50:
             return lr
@@ -371,8 +278,8 @@ history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=lo
 lr_schedule = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
 print('Starting training:')
-history = model.fit(train_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), epochs = num_epochs, validation_data = val_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), class_weight=class_weights, callbacks = [checkpoint_callback, history_logger, lr_schedule])
+history = model.fit(train_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), epochs = num_epochs, validation_data = val_ds_batch.prefetch(tf.data.experimental.AUTOTUNE), class_weight= class_weights, callbacks = [checkpoint_callback, history_logger])
 print('Training finished, plotting...')
 
-plot_metrics(history)
+plot_metrics(history, savename)
 

@@ -1,0 +1,1 @@
+  Epochs: 1000  Batch_size: 2040  Model_ID: model_smaller_rgb  Savename: testing_smallermodel_newsplit_morerror  Lr: 0.0001

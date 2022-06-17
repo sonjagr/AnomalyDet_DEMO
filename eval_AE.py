@@ -4,7 +4,7 @@ from pathlib import Path
 import pickle
 import matplotlib.pyplot as plt
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
@@ -48,7 +48,7 @@ xshape = 2720
 val_dataset = val_dataset.map(lambda item: tuple(tf.py_function(resize, [item], [tf.float32,])))
 
 model = 'TQ3'
-savemodel = 'TQ3_1_cont'
+savemodel = 'TQ3_more_data'
 epoch = '500'
 print('model: ', model , 'savemodel: ', savemodel, 'epoch: ', epoch)
 
@@ -56,8 +56,26 @@ saveloc = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/plots/'+savemodel
 Path(saveloc).mkdir(parents=True, exist_ok=True)
 
 ae = AutoEncoder()
-ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/'+savemodel+'/model_AE_'+model+'_'+epoch+'_to_'+epoch+'_epochs')
-#ae.build(input_shape=(PICTURESIZE_Y, PICTURESIZE_X, 1))
+ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_TQ3_more_data/AE_TQ3_318_to_318_epochs')
+
+import pickle
+
+with open('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_TQ3_more_data/cost.pkl', 'rb') as f:
+    x = pickle.load(f)
+
+test_losses = x['test_losses']
+train_losses = x['train_losses']
+print(len(train_losses))
+#plt.plot(np.arange(1, len(test_losses) + 1, 1/16000), train_losses, c='y', label = 'Train', linestyle='--')
+plt.plot(np.arange(1, len(test_losses) + 1, 1), test_losses, color='C1', label='Validation')
+plt.ylabel('L2 loss', fontsize=14)
+plt.xlabel('Epoch', fontsize=14)
+plt.title('Validation loss during training', fontsize = 16)
+plt.grid(zorder=-3)
+plt.tick_params(axis='both', which='major', labelsize=14)
+plt.legend(fontsize=14)
+plt.tight_layout()
+plt.show()
 
 print(ae.encoder.summary())
 print(ae.decoder.summary())

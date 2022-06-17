@@ -9,7 +9,7 @@ import random
 import matplotlib.pyplot as plt
 random.seed(42)
 
-gpu = "2"
+gpu = "3"
 
 #os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
@@ -23,8 +23,8 @@ ae.load('saved_class/model_AE_TQ3_500_to_500_epochs')
 #base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
 base_dir = 'db/'
 dir_det = 'DET/'
-#images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
-images_dir_loc = 'F:/ScratchDetection/MeasurementCampaigns/'
+images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
+#images_dir_loc = 'F:/ScratchDetection/MeasurementCampaigns/'
 
 X_train_det_list = np.load(base_dir + dir_det + 'X_train_DET.npy', allow_pickle=True)
 X_test = np.load(base_dir + dir_det + 'X_test_DET.npy', allow_pickle=True)
@@ -34,8 +34,6 @@ Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET.npy', allow_pickle=
 Y_test = np.load(base_dir + dir_det + 'Y_test_DET.npy', allow_pickle=True).tolist()
 
 N_det_val = int(len(X_test)/2)
-X_train_det_list = X_train_det_list
-Y_train_det_list = Y_train_det_list
 X_val_det_list = X_test[:N_det_val]
 Y_val_det_list = Y_test[:N_det_val]
 
@@ -52,13 +50,13 @@ test_ds = create_cnn_dataset(X_test_det_list, Y_test_det_list, _shuffle=True)
 
 @tf.function
 def crop(img, lbl):
-    img = tf.reshape(img, [-1, 2736, 3840, INPUT_DIM])
+    img = tf.reshape(img, [-1, 2736, 3840,1])
     img = tf.keras.layers.Cropping2D(cropping=((0, 16), (0, 0)))(img)
     return img, lbl
 
 @tf.function
 def encode(img, lbl, ae):
-    img = tf.reshape(img, [-1, 2720, 3840, INPUT_DIM])
+    img = tf.reshape(img, [-1, 2720, 3840, 1])
     encoded_img = ae.encode(img)
     decoded_img = ae.decode(encoded_img)
     aed_img = tf.math.sqrt(tf.pow(tf.subtract(img, decoded_img), 2))
@@ -116,8 +114,8 @@ train_norm_means = train_means[:3000]
 train_anom_means =train_means[-len(train_anom_means):]
 
 th = 0.54
-plt.hist(train_anom_means,  bins = int(np.sqrt(len(train_anom_means))), density = True, alpha = 0.6, color = 'C1', label='Anomalous', zorder = 3)
-plt.hist(train_norm_means, bins = int(np.sqrt(len(train_norm_means))),  density = True, alpha = 0.6,color = 'C0', label = 'Non-anomalous',zorder = 3)
+plt.hist(train_anom_means,  bins = int(np.sqrt(len(train_anom_means))), density = True, alpha = 0.6, color = 'lightgray', label='Anomalous', zorder = 3)
+plt.hist(train_norm_means, bins = int(np.sqrt(len(train_norm_means))),  density = True, alpha = 0.6,color = 'gray', label = 'Non-anomalous',zorder = 3)
 plt.grid(zorder = 1)
 plt.xlabel('Mean pixel-wise reconstruction error', fontsize = 14)
 plt.plot([th, th,th,th], [0.0,0.05,0.2,0.6], linestyle = '--', color = 'black', label='Threshold = 27.1')

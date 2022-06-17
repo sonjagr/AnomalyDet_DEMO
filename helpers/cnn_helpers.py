@@ -3,11 +3,6 @@ import numpy as np
 import random
 from autoencoders2 import *
 
-ae = AutoEncoder()
-print('Loading autoencoder and data...')
-ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
-
-
 ## calculate the output dimensions of a conv layer
 def cnn_layer_dim(input_size, kernel_size, strides, padding):
     output_size_x = ((input_size[0] - kernel_size[0] + 2*padding[0]) / strides[0]) + 1
@@ -40,35 +35,68 @@ def weighted_bincrossentropy(true, pred, weight_zero=1.0, weight_one=100.):
 
     return tf.keras.backend.mean(weighted_bin_crossentropy)
 
+import matplotlib.pyplot as plt
+def plot_metrics(history, savename):
+    colors = ['blue','red']
+    metrics = ['loss', 'prc', 'precision', 'recall']
+    for n, metric in enumerate(metrics):
+        name = metric.replace("_"," ").capitalize()
+        plt.subplot(2,2,n+1)
+        plt.plot(history.epoch, history.history[metric], color=colors[0], label='Train')
+        plt.plot(history.epoch, history.history['val_'+metric], color=colors[1], linestyle="--", label='Val')
+        plt.xlabel('Epoch')
+        plt.ylabel(name)
+        if metric == 'loss':
+            plt.ylim([0, plt.ylim()[1]])
+        elif metric == 'auc':
+            plt.ylim([0.8,1])
+        else:
+            plt.ylim([0,1])
+        plt.grid()
+        plt.legend()
+    plt.tight_layout()
+    plt.savefig('saved_CNNs/%s/training.png' % savename, dpi = 600)
+    plt.show()
+
+def plot_examples(ds):
+    for x, y in ds:
+        dim = tf.shape(x)[-1]
+        x = tf.reshape(x, [BOXSIZE, BOXSIZE, dim])
+        x = x.numpy()
+        plt.imshow(x.astype('uint8'), vmin = 0, vmax = 200.)
+        plt.title(str(y))
+        plt.show()
+
 @tf.function
 def crop(img, lbl):
-    img = tf.reshape(img, [-1, 2736, 3840, INPUT_DIM])
+    img = tf.reshape(img, [-1, PICTURESIZE_Y+16, PICTURESIZE_X, 1])
     img = tf.keras.layers.Cropping2D(cropping=((0, 16), (0, 0)))(img)
     return img, lbl
 
 @tf.function
-def bright_encode(img, lbl, ae, delta):
-    img = tf.cast(img, tf.float64)
-    img = tf.math.multiply(img, delta)
-    img = tf.cast(img, tf.float32)
-    img = tf.reshape(img, [-1, 2720, 3840, INPUT_DIM])
-    encoded_img = ae.encode(img)
-    decoded_img = ae.decode(encoded_img)
-    aed_img = tf.abs(tf.subtract(img, decoded_img))
-    return aed_img, lbl
+def flip(image_label, seed):
+    image, label = image_label
+    INPUT_DIM = tf.shape(image)[-1]
+    image = tf.reshape(image, [BOXSIZE, BOXSIZE, INPUT_DIM])
+    if seed > 5:
+        flipped = tf.image.flip_left_right(image)
+    else:
+        flipped = tf.image.flip_up_down(image)
+    return tf.reshape(flipped, [BOXSIZE, BOXSIZE, INPUT_DIM]), label
 
 @tf.function
 def patch_images(img, lbl):
-    split_img = tf.image.extract_patches(images=img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1], rates=[1, 1, 1, 1], padding='VALID')
-    re = tf.reshape(split_img, [17*24, 160 *160])
-    lbl = tf.reshape(lbl, [17*24])
+    INPUT_DIM = tf.shape(img)[-1]
+    split_img = tf.image.extract_patches(images=img, sizes=[1, BOXSIZE, BOXSIZE, 1], strides=[1, BOXSIZE, BOXSIZE, 1], rates=[1, 1, 1, 1], padding='VALID')
+    re = tf.reshape(split_img, [PATCHES, BOXSIZE *BOXSIZE, INPUT_DIM])
+    lbl = tf.reshape(lbl, [PATCHES])
     patch_ds = tf.data.Dataset.from_tensors((re, lbl))
     return patch_ds
 
 ## flatten labels per whole image
 @tf.function
 def patch_labels(lbl):
-    re = tf.reshape(lbl, [17*24])
+    re = tf.reshape(lbl, [PATCHES])
     flat_ds = tf.data.Dataset.from_tensors((re))
     return flat_ds
 
@@ -78,14 +106,6 @@ def ds_length(ds):
     ds = list(ds)
     dataset_len = len(ds)
     return dataset_len
-
-## rotate anomalous patches
-@tf.function
-def rotate_image(x):
-    x = tf.reshape(x, [1, 160, 160])
-    rot_angle = random.choice([1, 2, 3])
-    rot = tf.image.rot90(x, k=rot_angle, name=None)
-    return tf.reshape(rot, [-1])
 
 ## convert rgb to bayer format
 def rgb2bayer(rgb):
@@ -108,7 +128,9 @@ def tf_rgb2bayer(image):
 
 ## convert bayer to rgb
 def bayer2rgb(bayer):
-    rgb = cv2.cvtColor(bayer.numpy().reshape(160,160).astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
+    bayer = bayer.numpy()
+    shape = np.shape(bayer)
+    rgb = cv2.cvtColor(bayer.reshape(shape[1],shape[2],1).astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
     return rgb
 
 ## a wrapper for bayer2rgb
@@ -117,7 +139,7 @@ def tf_bayer2rgb(bayer):
     return rgb
 
 ## change brightness of patch
-def bright_image(img):
+def bright_image_numpy(img):
     delta = random.choice([-0.2, 0.2, 0.01])
     img = tf.image.adjust_brightness(img, delta)
     return img
@@ -125,7 +147,7 @@ def bright_image(img):
 ## a wrapper for bright_image
 def tf_bright_image(image):
   im_shape = image.shape
-  [image] = tf.py_function(bright_image, [image], [tf.float32])
+  [image] = tf.py_function(bright_image_numpy, [image], [tf.float32])
   image.set_shape(im_shape)
   return image
 
@@ -147,12 +169,64 @@ def grad(model, inputs, targets):
 
 @tf.function
 def encode(img, lbl, ae):
-    img = tf.reshape(img, [-1, 2720, 3840, INPUT_DIM])
+    INPUT_DIM = tf.shape(img)[-1]
+    img = tf.reshape(img, [-1, PICTURESIZE_Y, PICTURESIZE_X, INPUT_DIM])
     encoded_img = ae.encode(img)
     decoded_img = ae.decode(encoded_img)
-    aed_img = tf.sqrt(tf.pow(tf.subtract(img, decoded_img), 2))
+    aed_img = tf.abs(tf.subtract(img, decoded_img))
     return aed_img, lbl
 
+@tf.function
+def bright_encode(img, lbl, ae, delta):
+    INPUT_DIM = tf.shape(img)[-1]
+    img = tf.cast(img, tf.float64)
+    img = tf.math.multiply(img, delta)
+    img = tf.cast(img, tf.float32)
+    img = tf.reshape(img, [-1, PICTURESIZE_Y, PICTURESIZE_X, INPUT_DIM])
+    encoded_img = ae.encode(img)
+    decoded_img = ae.decode(encoded_img)
+    aed_img = tf.abs(tf.subtract(img, decoded_img))
+    return aed_img, lbl
+
+@tf.function
+def encode_rgb(img, lbl, ae):
+    img = tf.reshape(img, [-1, PICTURESIZE_Y, PICTURESIZE_X, 1])
+    img_rgb = tf_bayer2rgb(img)
+    encoded_img = ae.encode(img)
+    decoded_img = ae.decode(encoded_img)
+    decoded_img_rgb = tf_bayer2rgb(decoded_img)
+    aed_img = tf.abs(tf.subtract(img_rgb, decoded_img_rgb))
+    return aed_img, lbl
+
+@tf.function
+def bright_encode_rgb(img, lbl, ae, delta):
+    img = tf.cast(img, tf.float64)
+    img = tf.math.multiply(img, delta)
+    img = tf.cast(img, tf.float32)
+    img = tf.reshape(img, [-1, PICTURESIZE_Y, PICTURESIZE_X, 1])
+    encoded_img = ae.encode(img)
+    decoded_img = ae.decode(encoded_img)
+    img_rgb = tf_bayer2rgb(img)
+    decoded_img_rgb = tf_bayer2rgb(decoded_img)
+    aed_img = tf.abs(tf.subtract(img_rgb, decoded_img_rgb))
+    return aed_img, lbl
+
+@tf.function
+def rotate(image_label, rots):
+    image, label = image_label
+    INPUT_DIM = tf.shape(image)[-1]
+    image = tf.reshape(image, [BOXSIZE, BOXSIZE, INPUT_DIM])
+    rot = tf.image.rot90(image, k=rots)
+    return tf.reshape(rot, [BOXSIZE, BOXSIZE, INPUT_DIM]), label
+
+@tf.function
+def format_data(image, label):
+    INPUT_DIM = tf.shape(image)[-1]
+    image = tf.reshape(image, [BOXSIZE, BOXSIZE, INPUT_DIM])
+    label = tf.cast(label, tf.float32)
+    return image, label
+
+'''
 @tf.function
 def process_crop_bright_encode(image_label, delta):
     image, label = image_label
@@ -172,18 +246,6 @@ def process_crop(image, label):
     image = tf.reshape(image, [-1, 2720, 3840, INPUT_DIM])
     return image,label
 
-@tf.function
-def rotate(image_label, rots):
-    image, label = image_label
-    image = tf.reshape(image, [1, 160, 160])
-    rot = tf.image.rot90(image, k=rots)
-    return tf.reshape(rot, [160,160,1]), label
-
-@tf.function
-def format(image, label):
-    image = tf.reshape(image, [160, 160, 1])
-    label = tf.cast(label, tf.float32)
-    return image, label
 
 ## preprocessinh function for dataframes
 def preprocess(imgs, lbls, to_encode = True, ae = False, normal_times = 50, to_augment = False, to_brightness = False, to_brightness_before_ae = False, batch_size = 256, drop_rem = False):
@@ -192,7 +254,7 @@ def preprocess(imgs, lbls, to_encode = True, ae = False, normal_times = 50, to_a
 
     if to_brightness_before_ae:
         bright_cropped_imgs = cropped_imgs.map(tf_bayer2rgb)
-        bright_dataset_changed = bright_cropped_imgs.map(bright_image)
+        bright_dataset_changed = bright_cropped_imgs.map(bright_image_numpy)
         bright_cropped_images = bright_dataset_changed.map(tf_rgb2bayer)
 
     if to_encode == True:
@@ -243,7 +305,7 @@ def preprocess(imgs, lbls, to_encode = True, ae = False, normal_times = 50, to_a
 
     combined_dataset_batch = normal_dataset.concatenate(combined_anomalous_dataset).shuffle(buffer_size = 20000, reshuffle_each_iteration = True).batch(batch_size=batch_size, drop_remainder=drop_rem)
     return combined_dataset_batch, anomalous_nbr_before, anomalous_nbr
-
+'''
 
 
 

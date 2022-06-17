@@ -75,13 +75,6 @@ else:
     from old_codes.CNNs import *
     if model_ID == 'model_tf':
         model = model_tf
-    if model_ID == 'model_tf2':
-        model = model_tf2
-    if model_ID == 'model_simple':
-        model = model_simple
-    if model_ID == 'model_simple2':
-        model = model_simple2
-
 print(model.summary())
 
 lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=1e-2,decay_steps=10000,decay_rate=0.9)

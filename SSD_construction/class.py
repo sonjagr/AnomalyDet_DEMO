@@ -9,7 +9,6 @@ import d2l
 
 def cls_predictor(num_inputs, num_anchors, num_classes):
     model = tf.keras.Sequential([
-        tf.keras.layers.InputLayer(input_shape=(num_inputs, 4, 4)),
         tf.keras.layers.Conv2D(filters = num_anchors * (num_classes + 1), kernel_size=3, padding=1),
     ])
     return model
@@ -19,7 +18,6 @@ def cls_predictor(num_inputs, num_anchors, num_classes):
 
 def bbox_predictor(num_inputs, num_anchors):
     model = tf.keras.Sequential([
-        tf.keras.layers.InputLayer(input_shape=(num_inputs, -1, -1)),
         tf.keras.layers.Conv2D(filters = num_anchors * 4, kernel_size=3, padding=1),
     ])
     return model
@@ -32,7 +30,7 @@ Y1 = forward(tf.zeros((2, 8, 4, 4)), cls_predictor(8, 5, 2))
 print(Y1.shape)
 
 def flatten_pred(pred):
-    return torch.flatten(pred.permute(0, 2, 3, 1), start_dim=1)
+    return tf.flatten(pred.permute(0, 2, 3, 1), start_dim=1)
 
 def concat_preds(preds):
     return torch.cat([flatten_pred(p) for p in preds], dim=1)

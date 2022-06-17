@@ -1,16 +1,15 @@
 ## crop box sizes
 BOXSIZE_Y = 160
 BOXSIZE_X = 160
-
+BOXSIZE = 160
 ## image sizes
 PICTURESIZE_Y = 2748-28
 PICTURESIZE_X = 3840
 SS_BOX_THRESH = 20
 
-INPUT_DIM = 1
-
 YS = 17
 XS = 24
+PATCHES = XS*YS
 LW = 0.85
 
 BAD_DIR_ENDS = ('fter','DF','re','Re','IV', 'CV', 'ide', 'ment', 'sureme', 'epeat', 'ontact', 'emoval')

@@ -5,13 +5,13 @@ from common import *
 from helpers.dataset_helpers import box_to_labels
 from sklearn.model_selection import train_test_split
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2"
-os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
-"Sript that reads in the annotated files and creates separate files containing the image files for anomalous and non-anomalous images"
+"Script that reads in the annotated files and creates separate files containing the image files for anomalous and non-anomalous images"
 
 np.random.seed(42)
-f = 'db/three_annotations/main_db_bb_crop.h5'
-with pd.HDFStore(DataBaseFileLocation_gpu + f,  mode='r') as store:
+f = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/three_annotations/main_db_bb_crop.h5'
+with pd.HDFStore( f,  mode='r') as store:
         db = store.select('db_bb_crop')
         print(f'Reading {DataBaseFileLocation_local+f}')
 main_db = db
@@ -40,7 +40,7 @@ anomalous_labels['crop_lbls'] = anomalous_labels.apply(lambda x: box_to_labels(x
 
 ## split into training and test sets
 X_train_normal_list, X_test_normal_list = train_test_split(normal_files.values, test_size=0.2, shuffle=True, random_state=42)
-X_train_anomalous_list, X_test_anomalous_list, Y_train_anomalous_list, Y_test_anomalous_list = train_test_split(anomalous_files.values, anomalous_labels.crop_lbls.values, test_size=0.2, shuffle=True, random_state=1)
+X_train_anomalous_list, X_test_anomalous_list, Y_train_anomalous_list, Y_test_anomalous_list = train_test_split(anomalous_files.values, anomalous_labels.crop_lbls.values, test_size=0.2, shuffle=True, random_state=2)
 
 base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
 dir_ae = "AE/"
@@ -60,11 +60,11 @@ def save_file(path, nplist, overwrite):
 save_file(base_dir + dir_ae + 'X_train_AE.npy', X_train_normal_list, False)
 save_file(base_dir + dir_ae + 'X_test_AE.npy', X_test_normal_list, False)
 
-save_file(base_dir + dir_det + 'X_train_DET.npy', X_train_anomalous_list,  False)
-save_file(base_dir + dir_det + 'X_test_DET.npy', X_test_anomalous_list,  False)
+save_file(base_dir + dir_det + 'X_train_DET_2.npy', X_train_anomalous_list,  False)
+save_file(base_dir + dir_det + 'X_test_DET_2.npy', X_test_anomalous_list,  False)
 
-save_file(base_dir + dir_det + 'Y_train_DET.npy', Y_train_anomalous_list,  False)
-save_file(base_dir + dir_det + 'Y_test_DET.npy', Y_test_anomalous_list, False)
+save_file(base_dir + dir_det + 'Y_train_DET_2.npy', Y_train_anomalous_list,  False)
+save_file(base_dir + dir_det + 'Y_test_DET_2.npy', Y_test_anomalous_list, False)
 
 print(f'Number of training samples for AE is {len(X_train_normal_list)} and testing samples {len(X_test_normal_list)}')
 print(f'Number of training samples for CNN is {len(X_train_anomalous_list)} and testing samples {len(X_test_anomalous_list)}')

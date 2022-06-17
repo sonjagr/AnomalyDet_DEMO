@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import math
 from common import *
-from scipy.ndimage.interpolation import rotate
 import random
 import cv2
 
@@ -79,12 +78,6 @@ def combine_dbs(files, openloc, saveloc, name):
     main_db_bb_crop = pd.concat(append_db)
     main_db_bb_crop.to_hdf(saveloc, key=name, mode='w')
 
-## function to add rotation to images
-def rotate_img(img):
-    img = img.reshape(160,160)
-    rot_angle = random.choice([90, 180, 270])
-    rot = rotate(img, rot_angle)
-    return rot.flatten()
 
 ## convert rgb to bayer format
 def rgb2bayer(rgb):
@@ -97,9 +90,6 @@ def rgb2bayer(rgb):
     bayer[1::2, 1::2] = b[1::2, 1::2]
     return bayer
 
-## convert bayer to rgb
-def bayer2rgb(bayer):
-    return cv2.cvtColor(bayer.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
 
 ## change the brightness of whole images
 def change_brightness(img, value):
@@ -133,26 +123,6 @@ def change_brightness_patch(img):
     final_bayer = rgb2bayer(final_rgb)
     return final_bayer.reshape(160, 160).flatten()
 
-## function to calculate autoencoder reconstruction error as absolute error
-def encode(ae, img):
-    img = img[0].numpy().reshape(1, 2736, 3840, 1)[:, :2720, :, :]
-    encoded_img = ae.encode(img)
-    decoded_img = ae.decode(encoded_img).numpy()
-    aed_img = np.sqrt(np.power(np.subtract(img, decoded_img),2))
-    return aed_img
 
-## split image into patches
-def split(img):
-    img = img[0].numpy().reshape(1, 2736, 3840, 1)[:, :2720, :, :]
-    img = tf.convert_to_tensor(img, np.float32)
-    split_img = tf.image.extract_patches(images=img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1],rates=[1, 1, 1, 1], padding='VALID')
-    return split_img.numpy().reshape(17 * 24, 160 * 160)
-
-## split image into patches
-def split_numpy(img):
-    img = img.reshape(1, 2720, 3840, 1)
-    img = tf.convert_to_tensor(img, np.float32)
-    split_img = tf.image.extract_patches(images=img, sizes=[1, 160, 160, 1], strides=[1, 160, 160, 1],rates=[1, 1, 1, 1], padding='VALID')
-    return split_img.numpy().reshape(17 * 24, 160 * 160)
 
 
