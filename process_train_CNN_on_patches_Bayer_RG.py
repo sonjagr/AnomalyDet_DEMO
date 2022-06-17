@@ -187,7 +187,7 @@ if bright_aug == 'True':
     train_ds_brightness_anomaly = train_ds_brightness.filter(lambda x, y:  y == 1.)
     train_ds_anomaly = train_ds_anomaly.concatenate(train_ds_brightness_anomaly)
 
-nbr_anom_patches = len(list(train_ds.filter(lambda x, y:  y == 1.)))
+nbr_anom_patches = 1590
 print('    Number of anomalous patches: ', nbr_anom_patches)
 
 if bright_aug == 'True':
@@ -207,18 +207,19 @@ train_ds_rotated = train_ds_anomaly.concatenate(train_ds_to_rotate.map(rotate, n
 train_ds_rotated_flipped = train_ds_rotated.concatenate(train_ds_to_flip.map(flip, num_parallel_calls=tf.data.experimental.AUTOTUNE))
 
 augmented = train_ds_rotated_flipped
+anomalous = 9540
+normal = anomalous*50
 
 mean_error = 26.6
-train_ds_normal = train_ds.filter(lambda x,y: y == 0.).shuffle(300000)
-train_ds_normal_le = train_ds_normal.filter(lambda x, y: tf.reduce_mean(x) > mean_error)
+train_ds_normal_all = train_ds.filter(lambda x,y: y == 0.).shuffle(300000)
+train_ds_normal_l = train_ds_normal_all.filter(lambda x, y: tf.reduce_mean(x) > mean_error).take(int(0.8*normal))
+train_ds_normal_s = train_ds_normal_all.filter(lambda x, y: tf.reduce_mean(x) < mean_error).take(int(0.2*normal))
 
-train_ds_final = train_ds_normal_le.concatenate(augmented)
+train_ds_normal = train_ds_normal_s.concatenate(train_ds_normal_l)
+train_ds_final = train_ds_normal.concatenate(augmented)
 train_ds_final = train_ds_final.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 val_ds = val_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-train_ds_anomaly = train_ds_final.filter(lambda x, y:  y == 1.)
-
-normal, anomalous = len(list(train_ds_normal)), len(list(augmented))
 anomaly_weight = normal/anomalous
 print('    Number of normal, anomalous samples: ', normal, anomalous)
 print('    Anomaly weight: ', anomaly_weight)
@@ -249,6 +250,8 @@ else:
         model = model_whole
     if model_ID == 'model_whole_smaller':
         model = model_whole_smaller
+    if model_ID == 'model_whole_smaller2':
+        model = model_whole_smaller2
     def scheduler(epoch, lr):
         if epoch < 50:
             return lr

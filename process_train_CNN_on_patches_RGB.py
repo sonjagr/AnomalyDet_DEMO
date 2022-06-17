@@ -208,18 +208,19 @@ train_ds_rotated = train_ds_anomaly.concatenate(train_ds_to_rotate.map(rotate, n
 train_ds_rotated_flipped = train_ds_rotated.concatenate(train_ds_to_flip.map(flip, num_parallel_calls=tf.data.experimental.AUTOTUNE))
 
 augmented = train_ds_rotated_flipped
+anomalous = len(list(augmented))
+normal = anomalous*20
 
 mean_error = 20.5
-train_ds_normal = train_ds.filter(lambda x,y: y == 0.).shuffle(30000)
-train_ds_normal_le = train_ds_normal.filter(lambda x, y: tf.reduce_mean(x) > mean_error).take((nbr_anom_patches*6)*20)
+train_ds_normal_all = train_ds.filter(lambda x, y: y == 0.).shuffle(300000)
+train_ds_normal_l = train_ds_normal_all.filter(lambda x, y: tf.reduce_mean(x) > mean_error).take(int(0.75*normal))
+train_ds_normal_s = train_ds_normal_all.filter(lambda x, y: tf.reduce_mean(x) < mean_error).take(int(0.25*normal))
 
-train_ds_final = train_ds_normal_le.concatenate(augmented)
+train_ds_normal = train_ds_normal_s.concatenate(train_ds_normal_l)
+train_ds_final = train_ds_normal.concatenate(augmented)
 train_ds_final = train_ds_final.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 val_ds = val_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-train_ds_anomaly = train_ds_final.filter(lambda x, y:  y == 1.)
-
-normal, anomalous = (nbr_anom_patches*6)*20, 6*nbr_anom_patches
 #normal, anomalous = len(list(train_ds_normal)), len(list(augmented))
 anomaly_weight = normal/anomalous
 print('    Number of normal, anomalous samples: ', normal, anomalous)

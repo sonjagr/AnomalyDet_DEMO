@@ -14,13 +14,15 @@ from sklearn.metrics import confusion_matrix
 
 tf.keras.backend.clear_session()
 
-gpu = '2'
+gpu = '1'
 choose_test_ds = 'a'
-th = 0.6
+th = 0.9
+rgb = False
+history_is = False
 #savename = 'testing_model3'
-savename = 'whole_smaller_patch_rgb'
+savename = 'notf_withae'
 batch_size = 1
-epoch = 120
+epoch = 100
 
 print('Analysing model: ' + savename + ', epoch: ' +str(epoch))
 
@@ -29,8 +31,10 @@ if gpu is not 0:
 
 random.seed(42)
 
-training_history_file = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/history_log.csv' % savename
-history_df = pd.read_csv(training_history_file)
+if history_is:
+    training_history_file = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_class/%s/history_log.csv' % savename
+    history_df = pd.read_csv(training_history_file)
+model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_class/%s/cnn_%s_epoch_%s' % (savename, savename, epoch), compile=False)
 
 ae = AutoEncoder()
 print('Loading autoencoder and data...')
@@ -67,8 +71,6 @@ Y_val_norm_list = np.full((N_det_val, 408), 0.).tolist()
 print('Loaded number of val, test samples: ', N_det_val, N_det_test)
 print('All loaded. Starting processing...')
 time1 = time.time()
-
-model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, epoch), compile=False)
 
 @tf.function
 def patch_image(img):
@@ -156,14 +158,18 @@ if choose_test_ds == 'c':
 
 val_labels = np.append(Y_val_det_list, Y_val_norm_list).flatten()
 
-print(len(Y_val_det_list), len(Y_val_norm_list))
-
-test_ds = test_ds.map(process_crop_encode_rgb)
+if rgb == True:
+    test_ds = test_ds.map(process_crop_encode_rgb)
+if rgb == False:
+    test_ds = test_ds.map(process_crop_encode)
 test_ds = test_ds.flat_map(patch_images).unbatch()
 test_ds = test_ds.map(format_data)
 test_ds_batch = test_ds.batch(408)
 
-val_ds = val_ds.map(process_crop_encode_rgb)
+if rgb == True:
+    val_ds = val_ds.map(process_crop_encode_rgb)
+if rgb == False:
+    val_ds = val_ds.map(process_crop_encode)
 val_ds = val_ds.flat_map(patch_images).unbatch()
 val_ds = val_ds.map(format_data)
 val_ds_batch = val_ds.batch(408)
@@ -215,7 +221,6 @@ for x, y in test_ds_whole.take(5):
     predictions = np.array(predictions).flatten()
     indspred = np.where(predictions > th)[0]
     indspred = np.array(indspred).astype('int')
-    print(indspred)
     if len(indspred) > 0:
         defective = defective + 1
         for j in indspred:
@@ -233,8 +238,9 @@ for x, y in test_ds_whole.take(5):
 print('Number of flagged as anomalous, normals, all: ', defective, normal, ind)
 
 ##load and plot training history
-plot_training(history_df)
-plt.show()
+if history_is:
+    plot_training(history_df)
+    plt.show()
 
 print('FOR PATCHES: ')
 plot_cm(test_labels, test_pred_flat, p = th)
