@@ -90,15 +90,16 @@ def process_crop_encode_rgb(image, label):
     image, label = encode_rgb(image, label, ae)
     return image,label
 
-def plot_cm(labels, predictions, p):
+def plot_cm(labels, predictions, p, label):
     cm = confusion_matrix(labels, predictions>p, normalize='true')
     import sklearn
     plt.figure(1)
     cm_display = sklearn.metrics.ConfusionMatrixDisplay(cm).plot()
+    plt.title(label)
     plt.show()
 
 import sklearn
-def plot_roc(name, labels, predictions, **kwargs):
+def plot_roc(name, labels, predictions, title, **kwargs):
     fp, tp, _ = sklearn.metrics.roc_curve(labels, predictions)
     plt.figure(2)
     plt.plot(100*fp, 100*tp, label=name, linewidth=2, **kwargs)
@@ -108,9 +109,10 @@ def plot_roc(name, labels, predictions, **kwargs):
     plt.ylim([40,100.5])
     plt.grid(True)
     plt.legend(loc='lower right')
+    plt.title(title)
     plt.show()
 
-def plot_prc(name, labels, predictions, **kwargs):
+def plot_prc(name, labels, predictions, title, **kwargs):
     precision, recall, _ = sklearn.metrics.precision_recall_curve(labels, predictions)
     plt.figure(3)
     plt.plot(precision, recall, label=name, linewidth=2, **kwargs)
@@ -118,6 +120,7 @@ def plot_prc(name, labels, predictions, **kwargs):
     plt.ylabel('Recall')
     plt.grid(True)
     plt.legend(loc='lower right')
+    plt.title(title)
     plt.show()
 
 def plot_training(df):
@@ -131,6 +134,7 @@ def plot_training(df):
     plt.grid()
     plt.xlabel('Epoch')
     plt.ylabel('Binary Crossentropy Loss')
+    plt.title('Training and validation losses as a function of epochs')
     plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/training_history_plot.png' % savename, dpi=600)
     plt.show()
 
@@ -243,7 +247,7 @@ if history_is:
     plt.show()
 
 print('FOR PATCHES: ')
-plot_cm(test_labels, test_pred_flat, p = th)
+plot_cm(test_labels, test_pred_flat, p = th, label = 'Confusion matrix for test patches')
 cm = confusion_matrix(test_labels, test_pred_flat > th, normalize='true')
 
 tn, fp, fn, tp = cm.ravel()
@@ -261,8 +265,8 @@ print('Fbeta: ', f2)
 print('FPR: ', fp/(fp+tn))
 print('FNR: ', fn/(fn+tp))
 
-plot_roc("Test", test_labels, test_pred_flat, linestyle='--')
-plot_prc("Test", test_labels, test_pred_flat,  linestyle='--')
+plot_roc("Test", test_labels, test_pred_flat, 'ROC curve for test patches', linestyle='--')
+plot_prc("Test", test_labels, test_pred_flat, 'PRC curve for test patches',  linestyle='--')
 
 for name, metric in zip(model.metrics_names, model.metrics):
     print(name, ': ', metric(test_labels, test_pred_flat > th).numpy())

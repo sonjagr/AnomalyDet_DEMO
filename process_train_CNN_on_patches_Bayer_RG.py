@@ -252,6 +252,8 @@ else:
         model = model_whole_smaller
     if model_ID == 'model_whole_smaller2':
         model = model_whole_smaller2
+    if model_ID == 'model_super_small':
+        model = model_super_small
     def scheduler(epoch, lr):
         if epoch < 50:
             return lr
@@ -271,7 +273,7 @@ checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=filepath,monit
 
 ##save training history to file
 filename = 'saved_CNNs/%s/history_log.csv' % savename
-history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=load)
+history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=True)
 
 ##add lr schedule
 lr_schedule = tf.keras.callbacks.LearningRateScheduler(scheduler)
