@@ -5,11 +5,12 @@ from helpers.dataset_helpers import create_cnn_dataset
 from helpers.cnn_helpers import rotate, format_data, patch_images, flip, plot_metrics, plot_examples, crop, bright_encode, encode
 from old_codes.autoencoders import *
 import matplotlib.pyplot as plt
-import random, time, argparse
+import random, time, argparse, sys
 import tensorflow as tf
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 tf.keras.backend.clear_session()
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_ID", type=str, help="Model ID",
@@ -53,6 +54,9 @@ try:
     os.makedirs('saved_CNNs/%s' % savename)
 except FileExistsError:
     pass
+
+file_path = 'saved_CNNs/%s/output.txt' % savename
+sys.stdout = open(file_path, "w+")
 
 f = open('saved_CNNs/%s/argfile.txt' % savename, "w")
 f.write("  Epochs: %s" % num_epochs)
@@ -220,6 +224,8 @@ train_ds_final = train_ds_normal.concatenate(augmented)
 train_ds_final = train_ds_final.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 val_ds = val_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
+normal = len(list(train_ds_normal))
+anomalous = len(list(augmented))
 anomaly_weight = normal/anomalous
 print('    Number of normal, anomalous samples: ', normal, anomalous)
 print('    Anomaly weight: ', anomaly_weight)
