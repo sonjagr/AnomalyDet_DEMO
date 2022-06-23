@@ -19,7 +19,7 @@ gpu = '1'
 #savename = 'testing_model3'
 savename = 'testing_model3_more_data_lr'
 batch_size = 512
-epoch = 150
+epoch = 418
 
 print('Analysing model: ' + savename + ', epoch: ' +str(epoch))
 

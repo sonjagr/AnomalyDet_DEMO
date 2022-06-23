@@ -142,6 +142,13 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="sgroenro@pclcdgpu:22 (7)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/afs/cern.ch/user/s/sgroenro/anomaly_detection" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
     </serverData>
     <option name="myAutoUpload" value="ALWAYS" />
   </component>
