@@ -14,15 +14,15 @@ from sklearn.metrics import confusion_matrix
 
 tf.keras.backend.clear_session()
 
-gpu = '5'
+gpu = '2'
 choose_test_ds = 'c'
-th = 0.05
-rgb = True
-data = 'old'
-plot_ths = True
-history_is = False
+th = 0.1
+rgb = False
+data = 'very_clean'
+plot_ths = False
+history_is = True
 savename = 'final3_bayer_very_cleaned'
-savename = 'whole_batch_rgb_4'
+savename = 'final4_bayer_very_cleaned'
 batch_size = 1
 epoch = 90
 
@@ -44,17 +44,18 @@ def plot_training(df, savename):
     plt.grid()
     plt.xlabel('Epoch')
     plt.ylabel('Binary Crossentropy Loss')
-    plt.title('Training and validation losses as a function of epochs of %s' % savename)
+    plt.title('Training and validation losses as a function of epochs ' )
     plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/training_history_plot.png' % savename, dpi=600)
     plt.show()
 
 if history_is:
-    training_history_file = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/history_log.csv' % savename
+    training_history_file = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/history_log_cont.csv' % savename
     history_df = pd.read_csv(training_history_file)
     plot_training(history_df, savename)
 
 #model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, epoch), compile=False)
-model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s' % (savename, savename), compile=False)
+model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_cont' % (savename, savename), compile=False)
+br_model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/br_br_test/br_cnn_br_test', compile=True)
 
 print(model.summary())
 
@@ -89,21 +90,21 @@ if data == 'very_clean':
 N_det_test = int(len(Y_test_det_list)/2)
 
 X_val_det_list = X_test_det_list[:N_det_test]
-X_val_norm_list = X_test_norm_list[:N_det_test]
+X_val_norm_list = X_test_norm_list[:N_det_test*200]
 Y_val_det_list = Y_test_det_list[:N_det_test]
 
 X_test_det_list = X_test_det_list[-N_det_test:]
-X_test_norm_list = X_test_norm_list[-N_det_test:]
+X_test_norm_list = X_test_norm_list[-N_det_test*200:]
 Y_test_det_list = Y_test_det_list[-N_det_test:]
 
 N_det_val = len(X_val_det_list)
 
 if data == 'very_clean':
-    Y_test_norm_list = np.full((N_det_test, 408), 0.).tolist()
-    Y_val_norm_list = np.full((N_det_val, 408), 0.).tolist()
+    Y_test_norm_list = np.full((N_det_test*200, 408), 0.).tolist()
+    Y_val_norm_list = np.full((N_det_val*200, 408), 0.).tolist()
 else:
-    Y_test_norm_list = np.full((N_det_test, 17, 24), 0.).tolist()
-    Y_val_norm_list = np.full((N_det_val, 17, 24), 0.).tolist()
+    Y_test_norm_list = np.full((N_det_test*200, 17, 24), 0.).tolist()
+    Y_val_norm_list = np.full((N_det_val*200, 17, 24), 0.).tolist()
 
 print('Loaded number of val, test samples: ', N_det_val, N_det_test)
 print('All loaded. Starting processing...')
@@ -119,6 +120,11 @@ def patch_image(img):
 def process_crop_encode(image, label):
     image, label = crop(image, label)
     image, label = encode(image, label, ae)
+    return image, label
+
+@tf.function
+def process_crop(image, label):
+    image, label = crop(image, label)
     return image,label
 
 @tf.function
@@ -198,7 +204,8 @@ if choose_test_ds == 'n':
 if choose_test_ds == 'c':
     test_labels = np.append(Y_test_det_list, Y_test_norm_list, axis = 0).flatten()
 
-test_ds_whole = test_ds
+test_ds_whole = test_ds.copy()
+test_ds_br = test_ds.copy()
 val_ds_whole = val_ds
 
 val_labels = np.append(Y_val_det_list, Y_val_norm_list, axis = 0).flatten()
@@ -211,7 +218,7 @@ if rgb == False:
     test_ds = test_ds.map(process_crop_encode)
     time2 = time.time()
     val_ds = val_ds.map(process_crop_encode)
-
+    test_ds_br = test_ds_br.map(process_crop)
 
 test_ds = test_ds.flat_map(patch_images).unbatch()
 test_ds = test_ds.map(format_data)
@@ -220,6 +227,10 @@ test_ds_batch = test_ds.batch(408)
 val_ds = val_ds.flat_map(patch_images).unbatch()
 val_ds = val_ds.map(format_data)
 val_ds_batch = val_ds.batch(408)
+
+test_ds_br = test_ds_br.flat_map(patch_images).unbatch()
+test_ds_br = test_ds_br.map(format_data)
+
 
 def clean(test_pred, test_ds, p):
     test_pred = test_pred.flatten()
@@ -238,6 +249,7 @@ def clean(test_pred, test_ds, p):
 
 time_1 = time.time()
 test_pred = model.predict(test_ds_batch)
+test_pred_br = br_model.predict(test_ds_br).flatten()
 
 #test_pred = clean(test_pred, test_ds, th)
 time_2 = time.time()
@@ -300,10 +312,13 @@ for x, y in test_ds_whole:
                 ax.add_patch(rec)
     if len(inds) == 0:
         whole_label.append(0.)
-    predictions = test_pred_flat[ind*408:(ind+1)*408]
-    predictions = np.array(predictions).flatten()
+    predictions = np.array(test_pred_flat[ind*408:(ind+1)*408]).flatten()
+    br_predictions = np.array(test_pred_br[ind*408:(ind+1)*408]).flatten()
     indspred = np.where(predictions > th)[0]
     indspred = np.array(indspred).astype('int')
+    br_indspred = np.where(br_predictions > 0.5)[0]
+    br_indspred = np.array(br_indspred).astype('int')
+    indspred = [x for x in indspred if x not in br_indspred]
     if len(indspred) > 0:
         whole_pred.append(1.)
         defective = defective + 1
@@ -328,13 +343,15 @@ print('Number of whole images flagged as anomalous, normals, all: ', defective, 
 print('Average encode time:', np.mean(encode_times))
 print('FOR PATCHES: ')
 plot_cm(test_labels, test_pred_flat, p = th, label = 'Confusion matrix for test patches')
-cm = confusion_matrix(test_labels, test_pred_flat > th, normalize='true')
+cm = confusion_matrix(test_labels, test_pred_flat > th)
 
 plot_histogram(test_labels, test_pred_flat)
 
 tn, fp, fn, tp = cm.ravel()
 print('tn, fp, fn, tp: ', tn, fp, fn, tp)
 
+print('Precision: ', tp/(tp+fp))
+print('recall: ', tp/(tp+fn))
 error = (fp+fn)/(tp+tn+fp+fn)
 print('Error: ', error)
 
@@ -358,11 +375,13 @@ whole_pred = np.array(whole_pred)
 whole_label = np.array(whole_label)
 print('FOR WHOLE IMAGES')
 plot_cm(whole_label, whole_pred, p = 0.5, label = 'Confusion matrix for test whole images')
-cm = confusion_matrix(whole_label, whole_pred, normalize='true')
+cm = confusion_matrix(whole_label, whole_pred)
 
 tn, fp, fn, tp = cm.ravel()
 print('tn, fp, fn, tp: ', tn, fp, fn, tp)
 
+print('Precision: ', tp/(tp+fp))
+print('recall: ', tp/(tp+fn))
 error = (fp+fn)/(tp+tn+fp+fn)
 print('Error: ', error)
 

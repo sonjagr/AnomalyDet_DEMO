@@ -2,6 +2,7 @@
 BOXSIZE_Y = 160
 BOXSIZE_X = 160
 BOXSIZE = 160
+
 ## image sizes
 PICTURESIZE_Y = 2748-28
 PICTURESIZE_X = 3840
@@ -16,6 +17,7 @@ BAD_DIR_ENDS = ('fter','DF','re','Re','IV', 'CV', 'ide', 'ment', 'sureme', 'epea
 DEF_COLS = ["Campaign", "DUT", "Step", "FileName", "Normal"]
 
 EIGHTBITMAX = 255
+DPI = 600
 
 ANCHOR_GRID = []
 ANCHOR_GRID_STR = []
@@ -35,21 +37,21 @@ for row in range(int(BOXSIZE_Y/2), PICTURESIZE_Y, int(BOXSIZE_X/2)):
         ANCHOR_GRID_OFFSET_X_Y.append([col, row])
 
 ## base directory where images are stored
-imgDir_local = r'F:/ScratchDetection/MeasurementCampaigns/'
-imgDir_laptop_local = r'/media/gsonja/Samsung_T5/ScratchDetection/MeasurementCampaigns/'
+imgDir_pc = r'F:/ScratchDetection/MeasurementCampaigns/'
+imgDir_laptop = r'/media/gsonja/Samsung_T5/ScratchDetection/MeasurementCampaigns/'
 imgDir_gpu = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 
 ## lsit of all campaigns to consider here
 Campaigns = ['EndOf2021_PM8','Fall2021_PM8', 'LongTermIV_2021_ALPS', 'September2021_PM8', 'Winter2022_ALPS']
-Campaigns = ['Fall2021_PM8']
+Campaigns = ['EndOf2021_PM8']
 
 ## output file for annotations
 #DataBaseFile = 'EndOf2021_PM8.h5'
-#DataBaseFile = 'annotation_testing_delete'
+DataBaseFile = 'annotation_testing_backround'
 
 ## directory where annotation files will be stored
-DataBaseFileLocation_gpu = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/'
-DataBaseFileLocation_local = 'db/three_annotations/'
+DataBaseFileLocation_gpu = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
+DataBaseFileLocation_local = 'db/'
 
 TrainDir_gpu = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/'
 

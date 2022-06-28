@@ -1,0 +1,1 @@
+  Epochs: 500  Batch_size: 256  Model_ID: br_1  Savename: br_test2  Lr: 0.001  Data format: True

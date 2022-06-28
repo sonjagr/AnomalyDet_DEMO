@@ -7,7 +7,7 @@ import cv2
 
 def plot_annotated_image(file, boxX, boxY, dimX, dimY,  saveloc):
     image = np.load(file)
-    #image = cv2.cvtColor(image, cv2.COLOR_BAYER_RG2RGB)
+    #image_rgb = cv2.cvtColor(image, cv2.COLOR_BAYER_RG2RGB)
     fig, ax = plt.subplots()
     ax.imshow(image[0:PICTURESIZE_Y, 0:PICTURESIZE_X])
     for i in range(0,len(boxX)):

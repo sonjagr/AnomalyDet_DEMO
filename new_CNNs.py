@@ -51,6 +51,39 @@ model_whole_final3 = tf.keras.Sequential([
     tf.keras.layers.Dense(1, activation = 'sigmoid'),
 ])
 
+model_whole_final4 = tf.keras.Sequential([
+    tf.keras.layers.InputLayer(input_shape=(160, 160, 1)),
+    tf.keras.layers.experimental.preprocessing.Rescaling(1. / 255.),
+
+    tf.keras.layers.Conv2D(filters=64, kernel_size=(2,2), strides=(2,2), padding="valid", activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
+    tf.keras.layers.BatchNormalization(),
+    tf.keras.layers.Dropout(0.2),
+
+    tf.keras.layers.Conv2D(filters=64, kernel_size=(2, 2), strides=(2, 2), padding="valid", activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01)),
+    tf.keras.layers.BatchNormalization(),
+    tf.keras.layers.Dropout(0.2),
+
+    tf.keras.layers.Conv2D(filters=128, kernel_size=(2, 2), strides=(2, 2),  padding="valid", activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
+    tf.keras.layers.BatchNormalization(),
+    tf.keras.layers.Dropout(0.2),
+
+    tf.keras.layers.Conv2D(filters=128, kernel_size=(2, 2), strides=(2, 2), padding="valid", activation='relu'),
+    tf.keras.layers.BatchNormalization(),
+    tf.keras.layers.Dropout(0.2),
+
+    tf.keras.layers.Conv2D(filters=128, kernel_size=(2, 2), strides=(2, 2), padding="valid", activation='relu'),
+    tf.keras.layers.BatchNormalization(),
+    tf.keras.layers.Dropout(0.2),
+
+    tf.keras.layers.Conv2D(filters=256, kernel_size=(5, 5), strides=(5, 5), padding="valid", activation='relu'),
+    tf.keras.layers.BatchNormalization(),
+    tf.keras.layers.Dropout(0.2),
+
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(1, activation = 'sigmoid'),
+])
+
+print(model_whole_final4.summary())
 
 model_whole_final2 = tf.keras.Sequential([
     tf.keras.layers.InputLayer(input_shape=(160, 160, 1)),

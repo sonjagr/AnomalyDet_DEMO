@@ -23,6 +23,8 @@ parser.add_argument("--savename", type=str,
                     help="Name to save with", required=True)
 parser.add_argument("--load", type=bool,
                     help="Load old model or not", default = False, required=False)
+parser.add_argument("--lr", type=float,
+                    help="Lr", default = 1e-4, required=False)
 parser.add_argument("--contfromepoch", type=str,
                     help="If load = True: Epoch to continue training from", default=1, required=False)
 args = parser.parse_args()
@@ -33,6 +35,7 @@ model_ID = args.model_ID
 gpu = args.gpu
 savename = args.savename
 load = args.load
+lr = args.lr
 cont_epoch = args.contfromepoch
 os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
@@ -67,8 +70,8 @@ def Callback_EarlyStopping(LossList, min_delta=0.1, patience=20):
 
 base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
 dir_ae = "AE/"
-X_train_list = np.load(base_dir + dir_ae + 'X_train_AE.npy', allow_pickle=True)
-X_test_list = np.load(base_dir + dir_ae + 'X_test_AE.npy', allow_pickle=True)
+X_train_list = np.load(os.path.join(base_dir, dir_ae, 'X_train_AE.npy'), allow_pickle=True)
+X_test_list = np.load(os.path.join(base_dir, dir_ae, 'X_test_AE.npy'), allow_pickle=True)
 
 np.random.seed(1)
 X_train_list = np.random.choice(X_train_list, 16000, replace=False)
@@ -97,6 +100,10 @@ if load == False:
         ae.initialize_network_TQ2()
     elif model_ID == 'TQ3':
         ae.initialize_network_TQ3()
+    elif model_ID == 'TQ3_2':
+        ae.initialize_network_TQ3_2()
+    elif model_ID == 'TQ3_3':
+        ae.initialize_network_TQ3_3()
     else:
         print('No model defined named ', model_ID)
     min_steps_train = []
@@ -126,7 +133,7 @@ Path(save_location).mkdir(parents=True, exist_ok=True)
 costFigurePath = os.path.join(save_location, "cost.pdf")
 cost_file_path = costFigurePath.replace(".pdf", ".pkl")
 
-optimizer = tensorflow.keras.optimizers.Adam(1e-4)
+optimizer = tensorflow.keras.optimizers.Adam(lr)
 N_per_epoch = math.ceil(N_train / batch_size)
 min_step = 0 if len(min_steps_train) == 0 else min_steps_train[-1]
 start_epoch = int(min_step / N_per_epoch)

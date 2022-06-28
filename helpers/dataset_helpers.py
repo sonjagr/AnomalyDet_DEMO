@@ -78,7 +78,6 @@ def combine_dbs(files, openloc, saveloc, name):
     main_db_bb_crop = pd.concat(append_db)
     main_db_bb_crop.to_hdf(saveloc, key=name, mode='w')
 
-
 ## convert rgb to bayer format
 def rgb2bayer(rgb):
     (h,w) = rgb.shape[0], rgb.shape[1]
@@ -90,38 +89,6 @@ def rgb2bayer(rgb):
     bayer[1::2, 1::2] = b[1::2, 1::2]
     return bayer
 
-
-## change the brightness of whole images
-def change_brightness(img, value):
-    value = value.astype('uint8')
-    rgb = bayer2rgb(img.reshape(2736, 3840))
-    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
-
-    h, s, v = cv2.split(hsv)
-    lim = 255 - value
-    v[v > lim] = 255
-    v[v <= lim] += value
-
-    final_hsv = cv2.merge((h, s, v))
-    final_rgb = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2RGB)
-    final_bayer = rgb2bayer(final_rgb)
-    return final_bayer.reshape(-1, 2736, 3840, 1)
-
-## change the brightness of patches
-def change_brightness_patch(img):
-    value = random.choice(np.arange(-51,51,1)).astype('uint8')
-    rgb = bayer2rgb(img.reshape(160, 160))
-    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
-
-    h, s, v = cv2.split(hsv)
-    lim = 255 - value
-    v[v > lim] = 255
-    v[v <= lim] += value
-
-    final_hsv = cv2.merge((h, s, v))
-    final_rgb = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2RGB)
-    final_bayer = rgb2bayer(final_rgb)
-    return final_bayer.reshape(160, 160).flatten()
 
 
 
