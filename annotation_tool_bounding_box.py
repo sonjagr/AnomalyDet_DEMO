@@ -3,7 +3,7 @@ import pandas as pd
 from tqdm import tqdm
 import cv2
 from common import *
-from helpers.annotation_helpers import match, get_all_files_to_process, bb_to_sb
+from helpers.annotation_helpers import match, get_bad_files_to_process, bb_to_sb
 import os.path
 import matplotlib.patches as patches
 from matplotlib import pyplot as plt
@@ -13,7 +13,7 @@ DataBaseFileLocation = DataBaseFileLocation_local
 
 extra_cols = ["bound_boxX", "bound_boxY", "bound_box_dimX", "bound_box_dimY", "orig_boxX", "orig_boxY"]
 
-loaded_db, bad_files_to_process = get_all_files_to_process(DataBaseFileLocation, DataBaseFile, imgDir, Campaigns, extra_cols)
+loaded_db, bad_files_to_process = get_bad_files_to_process(DataBaseFileLocation, DataBaseFile, imgDir, Campaigns, extra_cols)
 
 def box_size(event):
     try:

@@ -43,17 +43,18 @@ imgDir_gpu = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 
 ## lsit of all campaigns to consider here
 Campaigns = ['EndOf2021_PM8','Fall2021_PM8', 'LongTermIV_2021_ALPS', 'September2021_PM8', 'Winter2022_ALPS']
-Campaigns = ['EndOf2021_PM8']
+#Campaigns = ['Winter2022_ALPS']
 
 ## output file for annotations
 #DataBaseFile = 'EndOf2021_PM8.h5'
-DataBaseFile = 'annotation_testing_backround'
+DataBaseFile = 'annotation_testing_for_anomalous_br'
 
 ## directory where annotation files will be stored
 DataBaseFileLocation_gpu = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
 DataBaseFileLocation_local = 'db/'
 
 TrainDir_gpu = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/'
+TrainDir_pc = 'C:/Users/sgroenro/PycharmProjects/anomaly-detection-2/'
 
 TEST_FRAC = 0.1
 VAL_FRAC = 0.1

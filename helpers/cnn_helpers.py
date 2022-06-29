@@ -80,7 +80,7 @@ def flip(image_label, seed):
     image = tf.reshape(image, [BOXSIZE, BOXSIZE, INPUT_DIM])
     if seed > 5:
         flipped = tf.image.flip_left_right(image)
-    if seed >= 5:
+    else:
         flipped = tf.image.flip_up_down(image)
     return tf.reshape(flipped, [BOXSIZE, BOXSIZE, INPUT_DIM]), label
 

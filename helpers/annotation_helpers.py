@@ -174,29 +174,18 @@ def get_all_files_to_process(DataBaseFileLocation, DataBaseFile, imgDir, Campaig
                 _subdirpath = os.path.join(_campaignpath, _dut)
                 if not os.path.isdir(_subdirpath):
                     continue
-                #print("Reading", _subdirpath)
+                print("Reading", _subdirpath)
                 if _subdirpath == 'F:/ScratchDetection/MeasurementCampaigns/September2021_PM8\8inch_198ch_N3311_7':
                     _subdirpath = _subdirpath + '/before'
                 dut_good_pad_images = {}
-                dut_bad_pad_images = {}
                 # loop over the single images and separate initial and re scans
                 for _file in os.listdir(_subdirpath):
-                    match_rescan = re.search(rescan_file_exp, _file)
                     match_initialscan = re.search(initial_file_exp, _file)
-                    if match_rescan is not None:
-                        dut_bad_pad_images[int(match_rescan["Step"])] = _file
-                    elif match_initialscan is not None:
+                    if match_initialscan is not None:
                         dut_good_pad_images[int(match_initialscan["Step"])] = _file
-                for bad_pad_index in dut_bad_pad_images:
-                    dut_bad_pad_images[bad_pad_index] = dut_good_pad_images[bad_pad_index]
-                    del dut_good_pad_images[bad_pad_index]
-                #print('Total number of rescans: ', len(dut_bad_pad_images))
                 for _s in sorted(dut_good_pad_images):
                     all_files_db.append(
                         (_campaign, _dut, _s, dut_good_pad_images[_s], True) + ((empty_list),) * len(extra_cols))
-                for _s in sorted(dut_bad_pad_images):
-                    all_files_db.append(
-                        (_campaign, _dut, _s, dut_bad_pad_images[_s], False) + ((empty_list),) * len(extra_cols))
 
     # this is a pandas data frame containing all images read and sorted from the ImageDir with the info of rescanned or not
     all_files_db = pd.DataFrame(all_files_db, columns=DEF_COLS + extra_cols)
@@ -211,19 +200,19 @@ def get_all_files_to_process(DataBaseFileLocation, DataBaseFile, imgDir, Campaig
 
     # 3. either create database or extend existing database with the good images
     if loaded_db is None:
-        loaded_db = all_files_db[all_files_db.Normal == True]
+        loaded_db = all_files_db
     else:
-        loaded_db = pd.concat([loaded_db, all_files_db[all_files_db.Normal == True]], axis=0)
+        loaded_db = pd.concat([loaded_db, all_files_db], axis=0)
         loaded_db = loaded_db[~loaded_db.index.duplicated(keep="first")]
 
     # 4. get list of all bad pads which are not part of the database
-    #bad_files_db = all_files_db[all_files_db.Normal == False]
-    all_files_db = all_files_db
+    bad_files_db = all_files_db
+
     ## bad files that are in the new database but not in loaded
-    #bad_files_to_process = bad_files_db[~bad_files_db.index.isin(loaded_db.index)]
-    #bad_files_to_process = bad_files_to_process.assign(processed=False)
-    all_files_to_process = all_files_db[~all_files_db.index.isin(loaded_db.index)]
-    all_files_to_process = all_files_to_process.assign(processed=False)
-    return loaded_db, all_files_to_process
+    bad_files_to_process = bad_files_db[~bad_files_db.index.isin(loaded_db.index)]
+    bad_files_to_process = bad_files_to_process.assign(processed=False)
+    #all_files_to_process = all_files_db[~all_files_db.index.isin(loaded_db.index)]
+    #all_files_to_process = all_files_to_process.assign(processed=False)
+    return loaded_db, bad_files_to_process
 
 

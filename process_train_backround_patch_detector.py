@@ -1,7 +1,7 @@
 import numpy as np
 INPUT_DIM = 3
 from helpers.dataset_helpers import create_cnn_dataset
-from helpers.cnn_helpers import  format_data, patch_images, , plot_metrics, plot_examples, crop,  tf_bayer2rgb
+from helpers.cnn_helpers import  format_data, patch_images, plot_metrics, plot_examples, crop,  tf_bayer2rgb
 import random, time, argparse, os
 import tensorflow as tf
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -60,10 +60,10 @@ f.close()
 
 random.seed(42)
 from common import *
-base_dir = DataBaseFileLocation_local
+base_dir = DataBaseFileLocation_gpu
 dir_det = 'DET/'
 dir_ae = 'AE/'
-images_dir_loc = imgDir_pc
+images_dir_loc = imgDir_gpu
 
 ## extract normal images for training
 X = np.load(os.path.join(base_dir, dir_ae, 'X_bgrnd.npy'), allow_pickle=True)
