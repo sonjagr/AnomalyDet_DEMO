@@ -95,11 +95,11 @@ X_test_list_normal_removed = [x for x in X_test_normal_list if x not in X_test_A
 #save_file(base_dir + dir_ae + 'X_train_NOT_AE.npy', X_train_list_normal_removed, True)
 #save_file(base_dir + dir_ae + 'X_test_NOT_AE.npy', X_test_list_normal_removed, True)
 
-save_file(base_dir + dir_det + 'X_train_DET_final.npy', X_train_anomalous_list,  True)
-save_file(base_dir + dir_det + 'X_test_DET_final.npy', X_test_anomalous_list,  True)
+save_file(base_dir + dir_det + 'X_train_DET_final.npy', X_train_anomalous_list,  False)
+save_file(base_dir + dir_det + 'X_test_DET_final.npy', X_test_anomalous_list,  False)
 
-save_file(base_dir + dir_det + 'Y_train_DET_final.npy', Y_train_anomalous_list,  True)
-save_file(base_dir + dir_det + 'Y_test_DET_final.npy', Y_test_anomalous_list, True)
+save_file(base_dir + dir_det + 'Y_train_DET_final.npy', Y_train_anomalous_list,  False)
+save_file(base_dir + dir_det + 'Y_test_DET_final.npy', Y_test_anomalous_list, False)
 
 print(f'Number of training samples for AE is {len(X_train_AE)} and testing samples {len(X_test_AE)}')
 print(f'Number of training samples not used for AE is {len(X_train_list_normal_removed)} and testing samples {len(X_test_list_normal_removed)}')

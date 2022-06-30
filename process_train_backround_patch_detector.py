@@ -21,12 +21,10 @@ parser.add_argument("--gpu", type=str,
                     help="Which gpu to use", default="1", required=False)
 parser.add_argument("--savename", type=str,
                     help="Name to save with", required=True)
-parser.add_argument("--load", type=str,
+parser.add_argument("--load", type=bool,
                     help="Load old model or not", default = False, required=False)
-parser.add_argument("--contfromepoch", type=bool,
-                    help="Epoch to continue training from", default=1, required=False)
-parser.add_argument("--data_format", type=bool,
-                    help="rgb or bayer", default='bayer', required=False)
+parser.add_argument("--rgb", type=bool,
+                    help="rgb or bayer", default=False, required=False)
 
 args = parser.parse_args()
 
@@ -37,8 +35,7 @@ gpu = args.gpu
 savename = args.savename
 load = args.load
 lr = args.lr
-cont_epoch = args.contfromepoch
-data_format = args.data_format
+data_format =args.rgb
 
 
 if gpu != 0:
@@ -66,14 +63,18 @@ dir_ae = 'AE/'
 images_dir_loc = imgDir_gpu
 
 ## extract normal images for training
-X = np.load(os.path.join(base_dir, dir_ae, 'X_bgrnd.npy'), allow_pickle=True)
-Y = np.load(os.path.join(base_dir, dir_ae, 'Y_bgrnd.npy'), allow_pickle=True).tolist()
-print(Y)
-X = [images_dir_loc + s for s in X]
+X_train = np.load(os.path.join(base_dir, dir_det, 'X_train_DET_backround.npy'), allow_pickle=True)
+Y_train = np.load(os.path.join(base_dir, dir_det, 'Y_train_DET_backround.npy'), allow_pickle=True).tolist()
+X_train = [images_dir_loc + s for s in X_train]
+
+X_test = np.load(os.path.join(base_dir, dir_det, 'X_test_DET_backround.npy'), allow_pickle=True)
+Y_test = np.load(os.path.join(base_dir, dir_det, 'Y_test_DET_backround.npy'), allow_pickle=True).tolist()
+X_test = [images_dir_loc + s for s in X_test]
 
 print('All loaded. Starting dataset creation...')
 
-ds = create_cnn_dataset(X, Y, _shuffle=False)
+train_ds = create_cnn_dataset(X_train, Y_train, _shuffle=False)
+test_ds = create_cnn_dataset(X_test, Y_test, _shuffle=False).take(103)
 
 METRICS = [
       tf.keras.metrics.TruePositives(name='tp'),
@@ -99,18 +100,17 @@ def process_crop_rgb(image, label):
 
 print('    Not applying autoencoding')
 
-train_ds_nob = ds.map(process_crop, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+train_ds_nob = train_ds.map(process_crop, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+test_ds_nob = test_ds.map(process_crop, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
 ## apply patching
-ds = train_ds_nob.flat_map(patch_images).unbatch().shuffle(50*408)
-
-test_ds = ds.take(4080)
-train_ds = ds.skip(4080)
+train_ds = train_ds_nob.flat_map(patch_images).unbatch().cache()
+test_ds = test_ds_nob.flat_map(patch_images).unbatch().shuffle(107*408)
 
 train_ds = train_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 test_ds = test_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-train_ds_final = train_ds.cache()
+train_ds_final = train_ds.shuffle(850*408, reshuffle_each_iteration=True)
 test_ds_final = test_ds.cache()
 
 train_ds_batch = train_ds_final.batch(batch_size=batch_size, drop_remainder = True)
@@ -123,8 +123,11 @@ test_ds_batch = test_ds_final.batch(batch_size=batch_size, drop_remainder = Fals
 optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
 from backround_CNNs import *
-if model_ID == 'br_1':
-    model = br_1
+if load == False:
+    if model_ID == 'br_1':
+        model = br_1
+if load == True:
+    model = tf.keras.models.load_model(os.path.join(saveloc +'/br_cnn_%s' % savename))
 
 model.compile(optimizer = optimizer, loss = tf.keras.losses.BinaryCrossentropy(from_logits=False), metrics=METRICS)
 
@@ -133,7 +136,7 @@ print(model.summary())
 filepath = saveloc +'/br_cnn_%s' % savename
 
 ##save every 10th epoch
-save_every = int(np.floor((len(list(train_ds)))/batch_size)*5)
+#save_every = int(np.floor((len(list(train_ds)))/batch_size)*5)
 checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=filepath, monitor='val_loss', verbose=0, save_best_only=True, save_weights_only=False, mode='auto')
 
 ##save training history to file

@@ -53,7 +53,7 @@ DataBaseFile = 'annotation_testing_for_anomalous_br'
 DataBaseFileLocation_gpu = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
 DataBaseFileLocation_local = 'db/'
 
-TrainDir_gpu = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/'
+TrainDir_gpu = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/'
 TrainDir_pc = 'C:/Users/sgroenro/PycharmProjects/anomaly-detection-2/'
 
 TEST_FRAC = 0.1

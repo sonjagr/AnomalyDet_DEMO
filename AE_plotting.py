@@ -5,7 +5,7 @@ from autoencoders2 import *
 from common import *
 import matplotlib.pyplot as plt
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 ae = AutoEncoder()
 import cv2
 
@@ -149,18 +149,19 @@ def plot_aed(path_to_ae, plotting_dataset, save, saveloc):
         plot_ae(img.reshape(2720, 3840), decoded_img.numpy().reshape(2720, 3840), save = save, i = p, saveloc = saveloc)
         p = p+1
 
-model_name = 'TQ3_more_data'
+model_name = 'TQ3_2'
+savename = 'TQ3_2_more_params_2'
 home_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/'
 saveloc = os.path.join(home_dir, 'AE_plots')
 
-path_to_loss_file = os.path.join(home_dir, 'checkpoints/TQ3_1_TQ3_more_data/cost.pkl')
+path_to_loss_file = os.path.join(home_dir, 'checkpoints/%s_1_%s/cost.pkl' % (model_name,savename))
 losses_plot(path_to_loss_file, model_name, save= True, saveloc = saveloc)
 
-epoch = 400
+epoch = 70
 base_dir = 'db/'
 dir_det = 'DET/'
 images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
-path_to_ae = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_TQ3_more_data/AE_TQ3_%s_to_%s_epochs' % (epoch, epoch)
+path_to_ae = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/%s_1_%s/AE_%s_%s_to_%s_epochs' % (model_name, savename, model_name, epoch, epoch)
 #images_dir_loc = 'F:/ScratchDetection/MeasurementCampaigns/'
 
 X_train_det_list = np.load(base_dir + dir_det + 'X_train_DET.npy', allow_pickle=True)

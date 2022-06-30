@@ -10,11 +10,12 @@ from sklearn.metrics import roc_curve
 import random, time
 import tensorflow as tf
 import pandas as pd
+import matplotlib.patches as patches
 from sklearn.metrics import confusion_matrix
 import sklearn
 tf.keras.backend.clear_session()
 
-gpu = '2'
+gpu = '3'
 choose_test_ds = 'c'
 th = 0.1
 rgb = False
@@ -24,6 +25,10 @@ savename = 'final3_bayer_very_cleaned'
 savename = 'final4_bayer_very_cleaned'
 batch_size = 1
 epoch = 90
+
+database_dir = DataBaseFileLocation_gpu
+base_dir = TrainDir_gpu
+images_dir_loc = imgDir_gpu
 
 print('Analysing model: ' + savename + ', epoch: ' +str(epoch))
 
@@ -44,36 +49,34 @@ def plot_training(df, savename):
     plt.xlabel('Epoch')
     plt.ylabel('Binary Crossentropy Loss')
     plt.title('Training and validation losses as a function of epochs ' )
-    plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/training_history_plot.png' % savename, dpi=600)
+    plt.savefig(os.path.join(base_dir, 'saved_CNNs/%s/training_history_plot.png' % savename), dpi=600)
     plt.show()
 
 if history_is:
-    training_history_file = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/history_log_cont.csv' % savename
+    training_history_file = os.path.join(base_dir, 'saved_CNNs/%s/history_log_cont.csv' % savename)
     history_df = pd.read_csv(training_history_file)
     plot_training(history_df, savename)
 
-model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/cnn_%s_cont' % (savename, savename), compile=False)
-br_model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/br_br_test2/br_cnn_br_test2', compile=False)
+model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/%s/cnn_%s_cont' % (savename, savename)), compile=False)
+br_model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/br_br_testing_gputf/br_cnn_br_testing_gputf'), compile=False)
 
 print(model.summary())
 
 ae = AutoEncoder()
 print('Loading autoencoder and data...')
-ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_TQ3_more_data/AE_TQ3_318_to_318_epochs')
+ae.load(os.path.join(base_dir, 'checkpoints/TQ3_1_TQ3_more_data/AE_TQ3_500_to_500_epochs'))
 
-base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
 dir_norm = 'AE/'
 dir_det = 'DET/'
-images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 
-X_test_det_list = np.load(base_dir + dir_det + 'X_test_DET_final.npy', allow_pickle=True)
+X_test_det_list = np.load(database_dir + dir_det + 'X_test_DET_final.npy', allow_pickle=True)
 
-X_test_norm_list = np.load(base_dir + dir_norm + 'X_test_AE.npy', allow_pickle=True)
+X_test_norm_list = np.load(database_dir + dir_norm + 'X_test_AE.npy', allow_pickle=True)
 
 X_test_det_list = [images_dir_loc + s for s in X_test_det_list]
 X_test_norm_list = [images_dir_loc + s for s in X_test_norm_list]
 
-Y_test_det_list = np.load(base_dir + dir_det + 'Y_test_DET_final.npy', allow_pickle=True).tolist()
+Y_test_det_list = np.load(database_dir + dir_det + 'Y_test_DET_final.npy', allow_pickle=True).tolist()
 
 N_det_test = int(len(Y_test_det_list)/2)
 
@@ -87,12 +90,8 @@ Y_test_det_list = Y_test_det_list[-N_det_test:]
 
 N_det_val = len(X_val_det_list)
 
-if data == 'very_clean':
-    Y_test_norm_list = np.full((N_det_test, 408), 0.).tolist()
-    Y_val_norm_list = np.full((N_det_val, 408), 0.).tolist()
-else:
-    Y_test_norm_list = np.full((N_det_test, 17, 24), 0.).tolist()
-    Y_val_norm_list = np.full((N_det_val, 17, 24), 0.).tolist()
+Y_test_norm_list = np.full((N_det_test, 17, 24), 0.).tolist()
+Y_val_norm_list = np.full((N_det_val, 17, 24), 0.).tolist()
 
 print('Loaded number of val, test samples: ', N_det_val, N_det_test)
 print('All loaded. Starting processing...')
@@ -122,7 +121,7 @@ def process_crop_encode_rgb(image, label):
     return image,label
 
 def plot_cm(labels, predictions, p, label):
-    cm = confusion_matrix(labels, predictions>p, normalize='true')
+    cm = confusion_matrix(labels,predictions, normalize='true')
     import sklearn
     plt.figure(1)
     cm_display = sklearn.metrics.ConfusionMatrixDisplay(cm).plot()
@@ -155,7 +154,7 @@ def plot_roc(name, labels, predictions, title, **kwargs):
     plt.grid(True)
     plt.legend(loc='lower right')
     plt.title(title)
-    plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/roc_plot_epoch_%s.png' % (savename, epoch), dpi=600)
+    plt.savefig(os.path.join(base_dir, 'saved_CNNs/%s/roc_plot_epoch_%s.png' % (savename, epoch)), dpi=600)
     plt.show()
 
 def plot_prc(name, labels, predictions, title, **kwargs):
@@ -167,14 +166,14 @@ def plot_prc(name, labels, predictions, title, **kwargs):
     plt.grid(True)
     plt.legend(loc='lower right')
     plt.title(title)
-    plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/prc_plot_epoch_%s.png' % (savename, epoch), dpi=600)
+    plt.savefig(os.path.join(base_dir, 'saved_CNNs/%s/prc_plot_epoch_%s.png' % (savename, epoch)), dpi=600)
     plt.show()
 
 def rounding_thresh(input, thresh):
     rounded = np.round(input - thresh + 0.5)
     return rounded
 
-def plot_histogram(test_labels, test_pred_flat):
+def plot_histogram(test_labels, test_pred_flat, p):
     true_ano = []
     true_nor = []
     for i,j in zip(test_labels, test_pred_flat):
@@ -182,70 +181,13 @@ def plot_histogram(test_labels, test_pred_flat):
             true_nor.append(j)
         if i == 1:
             true_ano.append(j)
-    plt.hist(true_nor, color = 'green')
-    plt.hist(true_ano, color = 'red')
+    plt.hist(true_nor, bins = int(np.sqrt(len(true_nor))), color = 'green', density = True, alpha = 0.7, label = 'Normal')
+    plt.hist(true_ano, bins = int(np.sqrt(len(true_ano))), color = 'red', density = True, alpha = 0.7, label = 'Anomalous')
+    plt.grid()
+    plt.legend()
     plt.show()
 
-def plot_wrong_test_examples(test_labels, test_pred_flat, test_ds):
-    for i in range(0, len(test_labels)):
-        if test_labels[i] != test_pred_flat:
-            plt.imshow(test_ds[i])
-
-test_ds = create_cnn_dataset(np.append(X_test_det_list, X_test_norm_list, axis = 0), np.append(Y_test_det_list, Y_test_norm_list, axis = 0), _shuffle=False)
-val_ds = create_cnn_dataset(np.append(X_val_det_list, X_val_norm_list, axis = 0), np.append(Y_val_det_list, Y_val_norm_list, axis = 0), _shuffle=False)
-
-normal_test_ds = create_cnn_dataset(X_test_norm_list, Y_test_norm_list, _shuffle=False)
-anomalous_test_ds = create_cnn_dataset(X_test_det_list, Y_test_det_list, _shuffle=False)
-
-if choose_test_ds == 'a':
-    test_labels = np.array(Y_test_det_list).flatten()
-    test_ds = anomalous_test_ds
-if choose_test_ds == 'n':
-    test_labels = np.array(Y_test_norm_list).flatten()
-    test_ds = normal_test_ds
-if choose_test_ds == 'c':
-    test_labels = np.append(Y_test_det_list, Y_test_norm_list, axis = 0).flatten()
-
-test_ds_whole = test_ds
-val_ds_whole = val_ds
-
-test_ds_br = test_ds.map(process_crop)
-test_ds_br = test_ds_br.flat_map(patch_images).unbatch()
-test_ds_br = test_ds_br.map(format_data).batch(408)
-
-val_labels = np.append(Y_val_det_list, Y_val_norm_list, axis = 0).flatten()
-
-if rgb == True:
-    test_ds = test_ds.map(process_crop_encode_rgb)
-    val_ds = val_ds.map(process_crop_encode_rgb)
-if rgb == False:
-    time1 = time.time()
-    test_ds = test_ds.map(process_crop_encode)
-    time2 = time.time()
-    val_ds = val_ds.map(process_crop_encode)
-
-test_ds = test_ds.flat_map(patch_images).unbatch()
-test_ds = test_ds.map(format_data)
-test_ds_batch = test_ds.batch(408)
-
-val_ds = val_ds.flat_map(patch_images).unbatch()
-val_ds = val_ds.map(format_data)
-val_ds_batch = val_ds.batch(408)
-
-
-time_1 = time.time()
-test_pred = model.predict(test_ds_batch)
-time_2 = time.time()
-print('Prediction time [s] for whole images (408 patches): ', (time_2 - time_1)/N_det_test)
-
-test_pred_br = br_model.predict(test_ds_br)
-test_pred_br_flat = test_pred_br.flatten()
-
-test_pred_flat = test_pred.flatten()
-val_pred = model.predict(val_ds_batch)
-val_pred_flat = val_pred.flatten()
-
-if plot_ths == True:
+def plot_thresholds():
     thresholds = np.arange(0.001, 0.2, 0.001)
     fps = []
     fns = []
@@ -254,142 +196,166 @@ if plot_ths == True:
         tn, fp, fn, tp = cm.ravel()
         fps.append(fp)
         fns.append(fn)
-    plt.plot(thresholds, fps, label = 'FP')
-    plt.plot(thresholds, fns, label = 'FN')
+    plt.plot(thresholds, fps, label='FP')
+    plt.plot(thresholds, fns, label='FN')
     plt.grid()
     plt.title('FP and FN for the validation set with different classification thresholds')
     plt.xlabel('Threshold')
     plt.ylabel('# of false predictions')
     plt.legend()
-    plt.savefig('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/%s/thresholds_plot_epoch_%s.png' % (savename, epoch), dpi=600)
+    plt.savefig(os.path.join(base_dir, 'saved_CNNs/%s/thresholds_plot_epoch_%s.png' % (savename, epoch)), dpi=600)
     plt.show()
+
+def plot_wrong_test_examples(test_labels, test_pred_flat, test_ds):
+    for i in range(0, len(test_labels)):
+        if test_labels[i] != test_pred_flat:
+            plt.imshow(test_ds[i])
+
+
+def evaluate_preds(label, prediction, title):
+    print(title)
+
+    plot_cm(label, rounding_thresh(prediction, th), p = th, label='Confusion matrix for %s' % title)
+    cm = confusion_matrix(label, rounding_thresh(prediction, th))
+
+    plot_histogram(label, prediction ,th)
+
+    tn, fp, fn, tp = cm.ravel()
+    print('tn, fp, fn, tp: ', tn, fp, fn, tp)
+
+    print('Precision: ', np.round(tp / (tp + fp),2))
+    print('recall: ', np.round(tp / (tp + fn),2))
+    error = (fp + fn) / (tp + tn + fp + fn)
+    print('Error: ', np.round(error, 2))
+
+    acc = 1 - error
+    print('Accuracy: ', np.round(acc, 2))
+
+    f2 = sklearn.metrics.fbeta_score(label, rounding_thresh(prediction, th), beta=2)
+    print('Fbeta: ', np.round(f2,2))
+
+    print('FPR: ', np.round(fp / (fp + tn), 2))
+    print('FNR: ', np.round(fn / (fn + tp), 2))
+
+    plot_roc("Test", label, prediction, 'ROC curve for for %s' % title, linestyle='--')
+    plot_prc("Test", label, prediction, 'PRC curve for for %s' % title, linestyle='--')
+
+test_ds = create_cnn_dataset(np.append(X_test_det_list, X_test_norm_list, axis = 0), np.append(Y_test_det_list, Y_test_norm_list, axis = 0), _shuffle=False).batch(1)
+val_ds = create_cnn_dataset(np.append(X_val_det_list, X_val_norm_list, axis = 0), np.append(Y_val_det_list, Y_val_norm_list, axis = 0), _shuffle=False)
+
+normal_test_ds = create_cnn_dataset(X_test_norm_list, Y_test_norm_list, _shuffle=False)
+anomalous_test_ds = create_cnn_dataset(X_test_det_list, Y_test_det_list, _shuffle=False)
+
+if choose_test_ds == 'a':
+    test_labels = np.array(Y_test_det_list).flatten()
+    test_ds = anomalous_test_ds
+elif choose_test_ds == 'n':
+    test_labels = np.array(Y_test_norm_list).flatten()
+    test_ds = normal_test_ds
+elif choose_test_ds == 'c':
+    test_labels = np.append(Y_test_det_list, Y_test_norm_list, axis = 0).flatten()
+
+val_labels = np.append(Y_val_det_list, Y_val_norm_list, axis = 0).flatten()
+
+if rgb == True:
+    val_ds = val_ds.map(process_crop_encode_rgb)
+if rgb == False:
+    val_ds = val_ds.map(process_crop_encode)
+
+val_ds = val_ds.flat_map(patch_images).unbatch()
+val_ds = val_ds.map(format_data)
+val_ds_batch = val_ds.batch(408)
+
+val_pred = model.predict(val_ds_batch)
+val_pred_flat = val_pred.flatten()
+
+if plot_ths == True:
+    plot_thresholds()
 
 ##choose threshold for classification
 print('CLASSIFICATION THRESHOLD: ', th)
+
+def format_data_batch(image, label):
+    image = tf.reshape(image, [408, 160, 160, 1])
+    label = tf.cast(label, tf.float32)
+    return image, label
 
 ind = 0
 normal = 0
 defective = 0
 whole_pred = []
 whole_label = []
+patch_pred = []
+patch_label = []
 plot = 1
 encode_times = []
-patch_times = []
-for x, y in test_ds_whole:
-    if plot == 1:
-        fig, ax = plt.subplots()
-    x_patch, y_patch = crop(x, y)
-    enct1 = time.time()
-    _, _ = encode(x_patch, y_patch, ae)
-    enct2 = time.time()
-    encode_times.append(enct2-enct1)
-    whole_y = y_patch.numpy().flatten()
-    inds = np.where(whole_y == 1.)[0]
-    inds = np.array(inds).astype('int')
-    whole_img = x_patch.numpy().reshape(2720, 3840)
-    if plot == 1:
-        ax.imshow(whole_img)
-    if len(inds) > 0:
-        whole_label.append(1.)
-        if plot == 1:
-            for i in inds:
-                true_x, true_y = box_index_to_coords(i)
-                rec = matplotlib.patches.Rectangle((true_x, true_y), 160, 160, facecolor='None', edgecolor='red')
-                ax.add_patch(rec)
-    if len(inds) == 0:
-        whole_label.append(0.)
-    predictions = np.array(test_pred_flat[ind*408:(ind+1)*408]).flatten()
-    br_predictions = np.array(test_pred_br_flat[ind*408:(ind+1)*408]).flatten()
-    indspred = np.where(predictions > th)[0]
-    indspred = np.array(indspred).astype('int')
-    br_indspred = np.where(br_predictions > 0.5)[0]
-    br_indspred = np.array(br_indspred).astype('int')
-    indspred = [x for x in indspred if x not in br_indspred]
-    if len(indspred) > 0:
-        whole_pred.append(1.)
-        defective = defective + 1
-        if plot == 1:
-            for j in indspred:
-                true_x, true_y = box_index_to_coords(j)
-                if j not in inds:
-                    rec = matplotlib.patches.Rectangle((true_x, true_y), 160, 160, facecolor='None', edgecolor='yellow')
-                if j in inds:
-                    rec = matplotlib.patches.Rectangle((true_x, true_y), 160, 160, facecolor='None', edgecolor='green')
-                ax.add_patch(rec)
-    if len(br_indspred) > 0:
-        if plot == 1:
-            for j in br_indspred:
-                true_x, true_y = box_index_to_coords(j)
-                rec = matplotlib.patches.Rectangle((true_x, true_y), 160, 160, facecolor='None', edgecolor='black')
-                ax.add_patch(rec)
-    if len(indspred) == 0:
-        whole_pred.append(0.)
-        normal = normal + 1
-    ind = ind + 1
-    if ind > 20 and ind < 30:
-        plot = 0
-    if plot == 1:
+prediction_times = []
+for whole_img, whole_lbl in test_ds:
+    whole_img, whole_lbl = process_crop(whole_img, whole_lbl)
+    enc_t1 = time.time()
+    whole_img_enc, whole_lbl = encode(whole_img, whole_lbl, ae)
+    enc_t2 = time.time()
+    encode_times.append(enc_t2-enc_t1)
+    whole_img_patched = patch_image(whole_img)
+    whole_img_enc_patched = patch_image(whole_img_enc)
+    whole_img_patched, whole_lbl = format_data_batch(whole_img_patched, whole_lbl)
+    br_pred = br_model.predict(whole_img_patched)
+    br_pred = np.round(br_pred)
+    ## get backround as zeroes so acts as a filter
+    br_pred_inv = 1-br_pred
+    whole_img_enc_patched, whole_lbl = format_data_batch(whole_img_enc_patched, whole_lbl)
+    pred_t1 = time.time()
+    pred = model.predict(whole_img_enc_patched)
+    pred_t2 = time.time()
+    prediction_times.append(pred_t2-pred_t1)
+    pred = np.multiply(pred, br_pred_inv)
+    pred_ids = np.where(pred > th)[0]
+    whole_lbl = whole_lbl.numpy().flatten()
+    lbl_ids = np.where(whole_lbl == 1.)[0]
+    patch_pred.append(pred.flatten())
+    patch_label.append(whole_lbl)
+    if len(pred_ids) > 0:
+        whole_pred.append(1)
+    elif len(pred_ids) == 0:
+        whole_pred.append(0)
+    if len(lbl_ids) > 0:
+        whole_label.append(1)
+    elif len(lbl_ids) == 0:
+        whole_label.append(0)
+    if plot ==1:
+        img, ax = plt.subplots()
+        ax.imshow(whole_img.numpy().reshape(2720, 3840))
+        for t in lbl_ids:
+            x_t,y_t = box_index_to_coords(t)
+            plt.gca().add_patch(patches.Rectangle((x_t, y_t), BOXSIZE, BOXSIZE, linewidth=2, edgecolor='r', facecolor='none'))
+        for p in pred_ids:
+            if p in lbl_ids:
+                color = 'g'
+            elif p not in lbl_ids:
+                color = 'y'
+            x_p, y_p = box_index_to_coords(p)
+            plt.gca().add_patch(patches.Rectangle((x_p, y_p), BOXSIZE, BOXSIZE, linewidth=2, edgecolor=color, facecolor='none'))
         plt.show()
+    ind = ind + 1
+    if ind > 10:
+        plot = 0
 
+patch_label = np.array(patch_label).flatten()
+patch_pred = np.array(patch_pred).flatten()
+whole_label = np.array(whole_label).flatten()
+whole_pred = np.array(whole_pred).flatten()
 print('Number of whole images flagged as anomalous, normals, all: ', defective, normal, ind)
 print('Average encode time:', np.mean(encode_times))
-print('FOR PATCHES: ')
+print('Average prediction time:', np.mean(prediction_times))
 
-#test_pred_flat = [x for x in test_pred_flat if x not in test_pred_flat]
-for i in range(0,len(test_pred_flat)):
-    if test_pred_flat[i] == 1. and test_pred_br_flat[i] == 1.:
-        test_pred_flat == 0.
+evaluate_preds(patch_label, patch_pred, 'test patches')
+evaluate_preds(whole_label, whole_pred, 'test whole images')
 
 
-plot_cm(test_labels, test_pred_flat, p = th, label = 'Confusion matrix for test patches')
-cm = confusion_matrix(test_labels, test_pred_flat > th)
-
-plot_histogram(test_labels, test_pred_flat)
-
-tn, fp, fn, tp = cm.ravel()
-print('tn, fp, fn, tp: ', tn, fp, fn, tp)
-
-print('Precision: ', tp/(tp+fp))
-print('recall: ', tp/(tp+fn))
-error = (fp+fn)/(tp+tn+fp+fn)
-print('Error: ', error)
-
-acc = 1-error
-print('Accuracy: ', acc)
-
-f2 = sklearn.metrics.fbeta_score(test_labels, test_pred_flat > th, beta = 2)
-print('Fbeta: ', f2)
-
-print('FPR: ', fp/(fp+tn))
-print('FNR: ', fn/(fn+tp))
-
-plot_roc("Test", test_labels, test_pred_flat, 'ROC curve for test patches', linestyle='--')
-plot_prc("Test", test_labels, test_pred_flat, 'PRC curve for test patches',  linestyle='--')
-
+'''
 for name, metric in zip(model.metrics_names, model.metrics):
-    print(name, ': ', metric(test_labels, test_pred_flat > th).numpy())
+    print(name, ': ', metric(patch_label, patch_pred).numpy())
 print()
+'''
 
-whole_pred = np.array(whole_pred)
-whole_label = np.array(whole_label)
-print('FOR WHOLE IMAGES')
-plot_cm(whole_label, whole_pred, p = 0.5, label = 'Confusion matrix for test whole images')
-cm = confusion_matrix(whole_label, whole_pred)
-
-tn, fp, fn, tp = cm.ravel()
-print('tn, fp, fn, tp: ', tn, fp, fn, tp)
-
-print('Precision: ', tp/(tp+fp))
-print('recall: ', tp/(tp+fn))
-error = (fp+fn)/(tp+tn+fp+fn)
-print('Error: ', error)
-
-acc = 1-error
-print('Accuracy: ', acc)
-
-f2 = sklearn.metrics.fbeta_score(whole_label, whole_pred, beta = 2)
-print('Fbeta: ', f2)
-
-print('FPR: ', fp/(fp+tn))
-print('FNR: ', fn/(fn+tp))
 
