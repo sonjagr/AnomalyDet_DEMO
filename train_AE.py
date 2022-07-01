@@ -48,6 +48,14 @@ def L2_loss_AE(model, x):
     return reconstruction_error
 
 @tensorflow.function
+def L1_loss_AE(model, x):
+    x_encoded = model.encode(x)
+    x_decoded = model.decode(x_encoded)
+    x = tensorflow.cast(x, tensorflow.float32)
+    reconstruction_error = tensorflow.reduce_mean(tensorflow.abs(tensorflow.subtract(x_decoded, x)))
+    return reconstruction_error
+
+@tensorflow.function
 def train_step(model, x, optimizer):
     with tensorflow.GradientTape() as tape:
         loss = L2_loss_AE(model, x)
@@ -121,14 +129,14 @@ if load == True:
         train_costs = _x["train_losses"]
         min_steps_test = _x["min_steps_test"]
         test_costs = _x["test_losses"]
-        start_epoch = int(cont_epoch) -1
+        start_epoch = int(cont_epoch) + 1
 
 patience = 10
 delta = 0.01
 saveModelEvery = 1
 
 model_name = 'AE_'+model_ID
-save_location = os.path.join(TrainDir_gpu, model_ID+'_'+str(batch_size)+'_'+str(savename))
+save_location = os.path.join(TrainDir_gpu, 'checkpoints', model_ID+'_'+str(batch_size)+'_'+str(savename))
 Path(save_location).mkdir(parents=True, exist_ok=True)
 costFigurePath = os.path.join(save_location, "cost.pdf")
 cost_file_path = costFigurePath.replace(".pdf", ".pkl")
@@ -136,9 +144,10 @@ cost_file_path = costFigurePath.replace(".pdf", ".pkl")
 optimizer = tensorflow.keras.optimizers.Adam(lr)
 N_per_epoch = math.ceil(N_train / batch_size)
 min_step = 0 if len(min_steps_train) == 0 else min_steps_train[-1]
-start_epoch = int(min_step / N_per_epoch)
+if load == False:
+    start_epoch = int(min_step / N_per_epoch)
 
-for epoch in range(1 + start_epoch, epochs + 1):
+for epoch in range(start_epoch, epochs + 1):
     print('Epoch: {} started'.format(epoch))
     start_time = time.time()
     for train_x in tqdm(train_dataset, total=tensorflow.data.experimental.cardinality(train_dataset).numpy()):

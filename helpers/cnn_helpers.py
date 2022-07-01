@@ -58,13 +58,16 @@ def plot_metrics(history, savename):
     plt.savefig('saved_CNNs/%s/training.png' % savename, dpi = DPI)
     plt.show()
 
-def plot_examples(ds):
+def plot_examples(ds, label = False):
     for x, y in ds:
         dim = tf.shape(x)[-1]
         x = tf.reshape(x, [BOXSIZE, BOXSIZE, dim])
         x = x.numpy()
         plt.imshow(x.astype('uint8'), vmin = 0, vmax = 200.)
-        plt.title(str(y))
+        if label:
+            plt.title(str(y))
+        plt.tick_params(axis='both', which='both', bottom=False, top=False, labelbottom=False, right=False,left=False, labelleft=False)
+        plt.tight_layout()
         plt.show()
 
 @tf.function

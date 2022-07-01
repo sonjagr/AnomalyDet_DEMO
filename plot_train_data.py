@@ -4,80 +4,28 @@ from helpers.cnn_helpers import rotate, format_data, patch_images, flip, plot_me
 from old_codes.autoencoders import *
 import random, time, argparse, os
 import tensorflow as tf
-from tensorflow_addons.losses import SigmoidFocalCrossEntropy
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 tf.keras.backend.clear_session()
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--model_ID", type=str, help="Model ID",
-                    default="model", required=True)
-parser.add_argument("--batch_size", type=int,
-                    help="Batch size for the training", default=256, required=False)
-parser.add_argument("--epochs", type=int,
-                    help="Number of epochs for the training", default=50, required=False)
-parser.add_argument("--lr", type=float,
-                    help="Learning rate", default=1e-3, required=False)
-parser.add_argument("--gpu", type=str,
-                    help="Which gpu to use", default="1", required=False)
-parser.add_argument("--savename", type=str,
-                    help="Name to save with", required=True)
-parser.add_argument("--load", type=int,
-                    help="Load old model or not", default = 0, required=False)
-parser.add_argument("--contfromepoch", type=int,
-                    help="Epoch to continue training from", default=1, required=False)
-parser.add_argument("--use_ae", type=int,
-                    help="use ae or not", default=1, required=False)
-parser.add_argument("--take_normal", type=int,
-                    help="how many times normal", default=10, required=False)
-parser.add_argument("--anomaly_weight", type=int,
-                    help="anomaly_weight", default=2, required=False)
+gpu = '3'
 
-args = parser.parse_args()
-
-num_epochs = args.epochs
-batch_size = args.batch_size
-model_ID = args.model_ID
-gpu = args.gpu
-savename = args.savename
-load = args.load
-lr = args.lr
-cont_epoch = args.contfromepoch
-use_ae = args.use_ae
-take_normal = args.take_normal
-anomaly_weight = args.anomaly_weight
-
-def write_file():
-    f = open('saved_CNNs/%s/argfile.txt' % savename, "w")
-    f.write("  Epochs: %s" % num_epochs)
-    f.write("  Batch_size: %s" % batch_size)
-    f.write("  Model_ID: %s" % model_ID)
-    f.write("  Savename: %s" % savename)
-    f.write("  Lr: %s" % lr)
-    f.write("  AE: %s" % use_ae)
-    f.write("  Nbr of times normal: %s" % take_normal)
-    f.write("  Anomaly_weight: %s" % anomaly_weight)
-    f.close()
+use_ae = False
 
 if gpu != 0:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
-try:
-    os.makedirs('saved_CNNs/%s' % savename)
-except FileExistsError:
-    pass
-
 random.seed(42)
 base_dir = ''
-base_dir = TrainDir_gpu
-images_dir_loc = imgDir_gpu
+base_dir = TrainDir_pc
+images_dir_loc = imgDir_pc
 dir_det = 'db/DET/'
 dir_ae = 'db/AE/'
 
-if use_ae == 1:
+if use_ae:
     ae = AutoEncoder()
     print('Loading autoencoder and data...')
-    ae.load(os.path.join(base_dir, 'checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_98_to_98_epochs'))
+    ae.load(os.path.join(base_dir, 'checkpoints/TQ3_1_TQ3_more_data/model_AE_TQ3_500_to_500_epochs'))
 
 ## extract normal images for training
 X_train_list_ae = np.load(os.path.join(base_dir, dir_ae, 'X_train_NOT_AE.npy'), allow_pickle=True)
@@ -139,23 +87,6 @@ METRICS = [
       tf.keras.metrics.AUC(name='prc', curve='PR'),
 ]
 
-if load == 1:
-    print('    Loading previously trained model...')
-    model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/%s/cnn_%s' % (savename, savename)))
-if load == 0:
-    print('    Not loading an old model...')
-    from new_CNNs import *
-    if model_ID == 'model_whole':
-        model = model_whole
-    if model_ID == 'model_whole_final':
-        model = model_whole_final
-    if model_ID == 'model_whole_final2':
-        model = model_whole_final2
-    if model_ID == 'model_whole_final3':
-        model = model_whole_final3
-    if model_ID == 'model_whole_final4':
-        model = model_whole_final4
-
 @tf.function
 def process_crop_encode(image, label):
     image, label = crop(image, label)
@@ -167,12 +98,12 @@ def process_crop(image, label):
     image, label = crop(image, label)
     return image, label
 
-if use_ae == 1:
+if use_ae == True:
     print('    Applying autoencoding')
     print('    Using bayer format')
     train_ds = train_ds.map(process_crop_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     val_ds = val_ds.map(process_crop_encode, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-if use_ae == 0:
+if use_ae == False:
     print('    Not applying autoencoding')
     print('    Using bayer format')
     train_ds = train_ds.map(process_crop, num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -192,16 +123,22 @@ print('    Number of anomalous patches: ', nbr_anom_patches)
 
 aug_size = nbr_anom_patches
 
+plot_examples(train_ds_anomaly.skip(10).take(3))
+
 rotations = np.random.randint(low = 1, high = 4, size = aug_size).astype('int32')
 counter2 = tf.data.Dataset.from_tensor_slices(rotations)
 train_ds_to_rotate = tf.data.Dataset.zip((train_ds_anomaly, counter2))
+rotated = train_ds_to_rotate.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+plot_examples(rotated.skip(10).take(3))
 
 flip_seeds = np.random.randint(low = 1, high = 11, size = aug_size).astype('int32')
 counter3 = tf.data.Dataset.from_tensor_slices(flip_seeds)
 train_ds_to_flip = tf.data.Dataset.zip((train_ds_anomaly, counter3))
+flipped = train_ds_to_flip.map(flip, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+plot_examples(flipped.skip(10).take(3))
 
-train_ds_rotated = train_ds_anomaly.concatenate(train_ds_to_rotate.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE))
-train_ds_rotated_flipped = train_ds_rotated.concatenate(train_ds_to_flip.map(flip, num_parallel_calls=tf.data.experimental.AUTOTUNE))
+train_ds_rotated = train_ds_anomaly.concatenate(rotated)
+train_ds_rotated_flipped = train_ds_rotated.concatenate(flipped)
 
 augmented = train_ds_rotated_flipped.cache()
 anomalous = nbr_anom_patches*3
@@ -214,63 +151,12 @@ mean_error = 27
 
 train_ds_normal_l = train_ds_normal_all.filter(lambda x, y: tf.reduce_mean(x) > mean_error)
 
-nbr_of_extra = len(list(train_ds_normal_l))
-extra_rotations = np.random.randint(low = 1, high = 4, size = nbr_of_extra).astype('int32')
-counter_extra1 = tf.data.Dataset.from_tensor_slices(extra_rotations)
-train_ds_normal_l_to_rotate = tf.data.Dataset.zip((train_ds_normal_l, counter_extra1))
-
-train_ds_normal_l_rotated = train_ds_normal_l.concatenate(train_ds_normal_l_to_rotate.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE))
-
-#train_ds_normal_extra = train_ds_normal_all.concatenate(train_ds_normal_l_rotated).cache()#shuffle(1.5*normal, reshuffle_each_iteration=True)
-
-#train_ds_normal_sample = train_ds_normal_extra.take(augmented*5)
-## if you want balanced recon error in normal patches
-#train_ds_final = train_ds_normal_sample.concatenate(augmented)
 train_ds_final = train_ds_normal_all.concatenate(augmented).cache()
 
 train_ds_final = train_ds_final.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 val_ds_final = val_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 print('    Number of normal, anomalous samples: ', normal, anomalous)
-print('    Anomaly weight set by user, anomaly weight in data: ', anomaly_weight, normal/anomalous)
+print('    Anomaly weight in data: ', normal/anomalous)
 
 train_ds_final = train_ds_final.shuffle(buffer_size=normal+anomalous, reshuffle_each_iteration=True)
 val_ds_final = val_ds_final.cache()
-
-train_ds_batch = train_ds_final.batch(batch_size=batch_size, drop_remainder = True)
-val_ds_batch = val_ds_final.batch(batch_size=batch_size, drop_remainder = False)
-
-plot_examples(train_ds_anomaly.skip(5).take(5))
-plot_examples(train_ds_normal_all.skip(5).take(5))
-
-time2 = time.time()
-pro_time = time2-time1
-print('Dataset (time {:.2f} s) created, starting training...'.format(pro_time))
-
-optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
-
-bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-fl = SigmoidFocalCrossEntropy(reduction=tf.keras.losses.Reduction.AUTO)
-model.compile(optimizer = optimizer, loss = fl, metrics=METRICS)
-
-print(model.summary())
-
-#class_weights = {0: 1, 1: anomaly_weight}
-
-filepath = 'saved_CNNs/%s/cnn_%s' % (savename, savename)
-checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=filepath, monitor='val_loss', verbose=0, save_best_only=True, mode='auto')
-
-##save training history to file
-filename = 'saved_CNNs/%s/history_log.csv' % savename
-history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=True)
-
-##add lr schedule
-#lr_schedule = tf.keras.callbacks.LearningRateScheduler(scheduler)
-
-write_file()
-
-print('Starting training:')
-history = model.fit(train_ds_batch, epochs = num_epochs, validation_data = val_ds_batch, callbacks = [checkpoint_callback, history_logger])
-print('Training finished, plotting...')
-
-plot_metrics(history, savename)
-
