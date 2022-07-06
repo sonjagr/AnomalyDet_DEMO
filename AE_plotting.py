@@ -157,7 +157,7 @@ saveloc = os.path.join(home_dir, 'AE_plots')
 path_to_loss_file = os.path.join(home_dir, 'checkpoints/%s_1_%s/cost.pkl' % (model_name,savename))
 losses_plot(path_to_loss_file, model_name, save= True, saveloc = saveloc)
 
-epoch = 70
+epoch = 130
 base_dir = 'db/'
 dir_det = 'DET/'
 images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'

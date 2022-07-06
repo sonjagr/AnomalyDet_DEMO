@@ -123,19 +123,19 @@ print('    Number of anomalous patches: ', nbr_anom_patches)
 
 aug_size = nbr_anom_patches
 
-plot_examples(train_ds_anomaly.skip(10).take(3))
+#plot_examples(train_ds_anomaly)
 
 rotations = np.random.randint(low = 1, high = 4, size = aug_size).astype('int32')
 counter2 = tf.data.Dataset.from_tensor_slices(rotations)
 train_ds_to_rotate = tf.data.Dataset.zip((train_ds_anomaly, counter2))
 rotated = train_ds_to_rotate.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-plot_examples(rotated.skip(10).take(3))
+#plot_examples(rotated.skip(10).take(3))
 
 flip_seeds = np.random.randint(low = 1, high = 11, size = aug_size).astype('int32')
 counter3 = tf.data.Dataset.from_tensor_slices(flip_seeds)
 train_ds_to_flip = tf.data.Dataset.zip((train_ds_anomaly, counter3))
 flipped = train_ds_to_flip.map(flip, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-plot_examples(flipped.skip(10).take(3))
+#plot_examples(flipped.skip(10).take(3))
 
 train_ds_rotated = train_ds_anomaly.concatenate(rotated)
 train_ds_rotated_flipped = train_ds_rotated.concatenate(flipped)
@@ -151,10 +151,15 @@ mean_error = 27
 
 train_ds_normal_l = train_ds_normal_all.filter(lambda x, y: tf.reduce_mean(x) > mean_error)
 
+#plot_examples(train_ds_normal_all.take(30))
 train_ds_final = train_ds_normal_all.concatenate(augmented).cache()
-
+#plot_examples(augmented.take(30))
 train_ds_final = train_ds_final.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 val_ds_final = val_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+plot_examples(val_ds_final.filter(lambda x, y: y == 0.).take(10))
+plot_examples(val_ds_final.filter(lambda x, y: y == 1.).take(10))
+
+
 print('    Number of normal, anomalous samples: ', normal, anomalous)
 print('    Anomaly weight in data: ', normal/anomalous)
 

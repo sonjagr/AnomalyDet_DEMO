@@ -10,6 +10,7 @@ from sklearn.metrics import roc_curve
 import random, time
 import tensorflow as tf
 import pandas as pd
+from tqdm import tqdm
 import matplotlib.patches as patches
 from sklearn.metrics import confusion_matrix
 import sklearn
@@ -17,14 +18,14 @@ tf.keras.backend.clear_session()
 
 gpu = '3'
 choose_test_ds = 'c'
-th = 0.1
+th = 0.3
 rgb = False
 plot_ths = False
 history_is = True
 savename = 'final3_bayer_very_cleaned'
-savename = 'final4_bayer_very_cleaned'
+savename = 'cleaned_testing_vgg_2'
 batch_size = 1
-epoch = 90
+epoch = 36
 
 database_dir = DataBaseFileLocation_gpu
 base_dir = TrainDir_gpu
@@ -42,7 +43,7 @@ def plot_training(df, savename):
     val_loss = df['val_loss']
     plt.plot(np.arange(0, len(train_loss)), train_loss, label = 'Training')
     plt.plot(np.arange(0, len(val_loss)), val_loss, label = 'Validation')
-    plt.ylim(0,1)
+    #plt.ylim(0,1)
     #plt.xlim(150, 500)
     plt.legend()
     plt.grid()
@@ -53,30 +54,32 @@ def plot_training(df, savename):
     plt.show()
 
 if history_is:
-    training_history_file = os.path.join(base_dir, 'saved_CNNs/%s/history_log_cont.csv' % savename)
+    training_history_file = os.path.join(base_dir, 'saved_CNNs/%s/history_log.csv' % savename)
     history_df = pd.read_csv(training_history_file)
     plot_training(history_df, savename)
 
-model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/%s/cnn_%s_cont' % (savename, savename)), compile=False)
+model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, epoch)), compile=False)
 br_model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/br_br_testing_gputf/br_cnn_br_testing_gputf'), compile=False)
 
 print(model.summary())
 
 ae = AutoEncoder()
 print('Loading autoencoder and data...')
-ae.load(os.path.join(base_dir, 'checkpoints/TQ3_1_TQ3_more_data/AE_TQ3_500_to_500_epochs'))
+ae.load(os.path.join(base_dir, 'checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_193_to_193_epochs'))
 
-dir_norm = 'AE/'
+dir_ae = 'AE/'
 dir_det = 'DET/'
 
 X_test_det_list = np.load(database_dir + dir_det + 'X_test_DET_final.npy', allow_pickle=True)
 
-X_test_norm_list = np.load(database_dir + dir_norm + 'X_test_AE.npy', allow_pickle=True)
+X_test_norm_list = np.load(database_dir + dir_ae + 'X_test_forcnn_clean.npy', allow_pickle=True)
+X_test_norm_list = [s.replace('F:/ScratchDetection/MeasurementCampaigns/', '') for s in X_test_norm_list]
 
 X_test_det_list = [images_dir_loc + s for s in X_test_det_list]
 X_test_norm_list = [images_dir_loc + s for s in X_test_norm_list]
 
-Y_test_det_list = np.load(database_dir + dir_det + 'Y_test_DET_final.npy', allow_pickle=True).tolist()
+Y_test_det_list = np.load(database_dir + dir_det + 'Y_test_DET_final_cleaned.npy', allow_pickle=True).tolist()
+Y_test_det_list = np.array(Y_test_det_list).reshape(int(len(Y_test_det_list)/408), 408)
 
 N_det_test = int(len(Y_test_det_list)/2)
 
@@ -88,12 +91,10 @@ X_test_det_list = X_test_det_list[-N_det_test:]
 X_test_norm_list = X_test_norm_list[-N_det_test:]
 Y_test_det_list = Y_test_det_list[-N_det_test:]
 
-N_det_val = len(X_val_det_list)
+Y_test_norm_list = np.full((N_det_test, 408), 0.).tolist()
+Y_val_norm_list = np.full((N_det_test, 408), 0.).tolist()
 
-Y_test_norm_list = np.full((N_det_test, 17, 24), 0.).tolist()
-Y_val_norm_list = np.full((N_det_val, 17, 24), 0.).tolist()
-
-print('Loaded number of val, test samples: ', N_det_val, N_det_test)
+print('Loaded number of val, test samples: ', N_det_test)
 print('All loaded. Starting processing...')
 time1 = time.time()
 
@@ -173,10 +174,10 @@ def rounding_thresh(input, thresh):
     rounded = np.round(input - thresh + 0.5)
     return rounded
 
-def plot_histogram(test_labels, test_pred_flat, p):
+def plot_histogram(labels, pred_flat, p):
     true_ano = []
     true_nor = []
-    for i,j in zip(test_labels, test_pred_flat):
+    for i,j in zip(labels, pred_flat):
         if i == 0:
             true_nor.append(j)
         if i == 1:
@@ -206,12 +207,6 @@ def plot_thresholds():
     plt.savefig(os.path.join(base_dir, 'saved_CNNs/%s/thresholds_plot_epoch_%s.png' % (savename, epoch)), dpi=600)
     plt.show()
 
-def plot_wrong_test_examples(test_labels, test_pred_flat, test_ds):
-    for i in range(0, len(test_labels)):
-        if test_labels[i] != test_pred_flat:
-            plt.imshow(test_ds[i])
-
-
 def evaluate_preds(label, prediction, title):
     print(title)
 
@@ -240,122 +235,135 @@ def evaluate_preds(label, prediction, title):
     plot_roc("Test", label, prediction, 'ROC curve for for %s' % title, linestyle='--')
     plot_prc("Test", label, prediction, 'PRC curve for for %s' % title, linestyle='--')
 
-test_ds = create_cnn_dataset(np.append(X_test_det_list, X_test_norm_list, axis = 0), np.append(Y_test_det_list, Y_test_norm_list, axis = 0), _shuffle=False).batch(1)
-val_ds = create_cnn_dataset(np.append(X_val_det_list, X_val_norm_list, axis = 0), np.append(Y_val_det_list, Y_val_norm_list, axis = 0), _shuffle=False)
-
-normal_test_ds = create_cnn_dataset(X_test_norm_list, Y_test_norm_list, _shuffle=False)
-anomalous_test_ds = create_cnn_dataset(X_test_det_list, Y_test_det_list, _shuffle=False)
-
-if choose_test_ds == 'a':
-    test_labels = np.array(Y_test_det_list).flatten()
-    test_ds = anomalous_test_ds
-elif choose_test_ds == 'n':
-    test_labels = np.array(Y_test_norm_list).flatten()
-    test_ds = normal_test_ds
-elif choose_test_ds == 'c':
-    test_labels = np.append(Y_test_det_list, Y_test_norm_list, axis = 0).flatten()
-
-val_labels = np.append(Y_val_det_list, Y_val_norm_list, axis = 0).flatten()
-
-if rgb == True:
-    val_ds = val_ds.map(process_crop_encode_rgb)
-if rgb == False:
-    val_ds = val_ds.map(process_crop_encode)
-
-val_ds = val_ds.flat_map(patch_images).unbatch()
-val_ds = val_ds.map(format_data)
-val_ds_batch = val_ds.batch(408)
-
-val_pred = model.predict(val_ds_batch)
-val_pred_flat = val_pred.flatten()
-
-if plot_ths == True:
-    plot_thresholds()
-
-##choose threshold for classification
-print('CLASSIFICATION THRESHOLD: ', th)
+def plot_false(false_patches, title):
+    false_patches = false_patches
+    l = int(len(false_patches)/(160*160))
+    false_patches = false_patches.reshape(l, 160, 160)
+    for i in range(0,l):
+        plt.imshow(false_patches[i].reshape(160,160))
+        plt.title(title)
+        plt.show()
 
 def format_data_batch(image, label):
     image = tf.reshape(image, [408, 160, 160, 1])
     label = tf.cast(label, tf.float32)
     return image, label
 
-ind = 0
-normal = 0
-defective = 0
-whole_pred = []
-whole_label = []
-patch_pred = []
-patch_label = []
-plot = 1
-encode_times = []
-prediction_times = []
-for whole_img, whole_lbl in test_ds:
-    whole_img, whole_lbl = process_crop(whole_img, whole_lbl)
-    enc_t1 = time.time()
-    whole_img_enc, whole_lbl = encode(whole_img, whole_lbl, ae)
-    enc_t2 = time.time()
-    encode_times.append(enc_t2-enc_t1)
-    whole_img_patched = patch_image(whole_img)
-    whole_img_enc_patched = patch_image(whole_img_enc)
-    whole_img_patched, whole_lbl = format_data_batch(whole_img_patched, whole_lbl)
-    br_pred = br_model.predict(whole_img_patched)
-    br_pred = np.round(br_pred)
-    ## get backround as zeroes so acts as a filter
-    br_pred_inv = 1-br_pred
-    whole_img_enc_patched, whole_lbl = format_data_batch(whole_img_enc_patched, whole_lbl)
-    pred_t1 = time.time()
-    pred = model.predict(whole_img_enc_patched)
-    pred_t2 = time.time()
-    prediction_times.append(pred_t2-pred_t1)
-    pred = np.multiply(pred, br_pred_inv)
-    pred_ids = np.where(pred > th)[0]
-    whole_lbl = whole_lbl.numpy().flatten()
-    lbl_ids = np.where(whole_lbl == 1.)[0]
-    patch_pred.append(pred.flatten())
-    patch_label.append(whole_lbl)
-    if len(pred_ids) > 0:
-        whole_pred.append(1)
-    elif len(pred_ids) == 0:
-        whole_pred.append(0)
-    if len(lbl_ids) > 0:
-        whole_label.append(1)
-    elif len(lbl_ids) == 0:
-        whole_label.append(0)
-    if plot ==1:
-        img, ax = plt.subplots()
-        ax.imshow(whole_img.numpy().reshape(2720, 3840))
-        for t in lbl_ids:
-            x_t,y_t = box_index_to_coords(t)
-            plt.gca().add_patch(patches.Rectangle((x_t, y_t), BOXSIZE, BOXSIZE, linewidth=2, edgecolor='r', facecolor='none'))
-        for p in pred_ids:
-            if p in lbl_ids:
-                color = 'g'
-            elif p not in lbl_ids:
-                color = 'y'
-            x_p, y_p = box_index_to_coords(p)
-            plt.gca().add_patch(patches.Rectangle((x_p, y_p), BOXSIZE, BOXSIZE, linewidth=2, edgecolor=color, facecolor='none'))
-        plt.show()
-    ind = ind + 1
-    if ind > 10:
-        plot = 0
+def eval_loop(dataset):
+    ind = 0
+    whole_pred = []
+    whole_label = []
+    patch_pred = []
+    patch_label = []
+    plot = 1
+    encode_times = []
+    prediction_times = []
+    false_positive_patches = []
+    false_negative_patches = []
+    for whole_img, whole_lbl in tqdm(dataset, total=200):
+        ## crop and encode
+        whole_img, whole_lbl = process_crop(whole_img, whole_lbl)
+        enc_t1 = time.time()
+        whole_img_enc, whole_lbl = encode(whole_img, whole_lbl, ae)
+        enc_t2 = time.time()
+        encode_times.append(enc_t2-enc_t1)
+
+        ##patch
+        whole_img_patched = patch_image(whole_img)
+        whole_img_enc_patched = patch_image(whole_img_enc)
+        whole_img_patched, whole_lbl = format_data_batch(whole_img_patched, whole_lbl)
+
+        ##predict backgrounds
+        br_pred = br_model.predict(whole_img_patched)
+        br_pred = np.round(br_pred)
+        br_pred_ids = np.where(br_pred > 0.5)[0]
+        ## get backround as zeroes so acts as a filter
+        br_pred_inv = 1-br_pred
+        whole_img_enc_patched, whole_lbl = format_data_batch(whole_img_enc_patched, whole_lbl)
+
+        ## predict labels
+        pred_t1 = time.time()
+        pred = model.predict(whole_img_enc_patched)
+        pred_t2 = time.time()
+        prediction_times.append(pred_t2-pred_t1)
+
+        pred = np.multiply(pred, br_pred_inv)
+        pred_ids = np.where(pred > th)[0]
+
+        whole_lbl = whole_lbl.numpy().flatten()
+        lbl_ids = np.where(whole_lbl == 1.)[0]
+
+        patch_pred.append(pred.flatten())
+        patch_label.append(whole_lbl)
+
+        if len(pred_ids) > 0:
+            whole_pred.append(1)
+        elif len(pred_ids) == 0:
+            whole_pred.append(0)
+        if len(lbl_ids) > 0:
+            whole_label.append(1)
+        elif len(lbl_ids) == 0:
+            whole_label.append(0)
+        if plot == 1:
+            #print('Whole label : ', whole_label)
+            img, ax = plt.subplots()
+            ax.imshow(whole_img.numpy().reshape(2720, 3840))
+            for t in lbl_ids:
+                x_t,y_t = box_index_to_coords(t)
+                plt.gca().add_patch(patches.Rectangle((x_t, y_t), BOXSIZE, BOXSIZE, linewidth=2, edgecolor='r', facecolor='none'))
+                if t not in pred_ids:
+                    false_negative_patches = np.append(false_negative_patches,whole_img_enc_patched[t].numpy().reshape(160, 160))
+            for p in pred_ids:
+                if p in lbl_ids:
+                    color = 'g'
+                elif p not in lbl_ids:
+                    color = 'y'
+                    false_positive_patches = np.append(false_positive_patches, whole_img_enc_patched[p].numpy().reshape(160,160))
+                x_p, y_p = box_index_to_coords(p)
+                plt.gca().add_patch(patches.Rectangle((x_p, y_p), BOXSIZE, BOXSIZE, linewidth=2, edgecolor=color, facecolor='none'))
+            for b in br_pred_ids:
+                x_b, y_b = box_index_to_coords(b)
+                plt.gca().add_patch(
+                    patches.Rectangle((x_b, y_b), BOXSIZE, BOXSIZE, linewidth=2, edgecolor='gray', facecolor='none'))
+            plt.show()
+        ind = ind + 1
+        if ind > 10:
+            plot = 0
+    return whole_pred, whole_label, patch_pred , patch_label, false_positive_patches , false_negative_patches
+
+test_ds = create_cnn_dataset(np.append(X_test_det_list, X_test_norm_list, axis = 0), np.append(Y_test_det_list, Y_test_norm_list, axis = 0), _shuffle=False).batch(1)
+val_ds = create_cnn_dataset(np.append(X_val_det_list, X_val_norm_list, axis = 0), np.append(Y_val_det_list, Y_val_norm_list, axis = 0), _shuffle=False).batch(1)
+print(len(list(val_ds)))
+normal_test_ds = create_cnn_dataset(X_test_norm_list, Y_test_norm_list, _shuffle=False)
+anomalous_test_ds = create_cnn_dataset(X_test_det_list, Y_test_det_list, _shuffle=False)
+
+if choose_test_ds == 'a':
+    test_ds = anomalous_test_ds
+elif choose_test_ds == 'n':
+    test_ds = normal_test_ds
+
+test_ds = test_ds
+
+##choose threshold for classification
+print('CLASSIFICATION THRESHOLD: ', th)
+
+whole_pred, whole_label, patch_pred , patch_label, false_positive_patches , false_negative_patches = eval_loop(test_ds)
+
+false_positive_patches = np.array(false_positive_patches)
+false_negative_patches = np.array(false_negative_patches)
+#plot_false(false_positive_patches, 'False POSITIVE')
+plot_false(false_negative_patches, 'False NEGATIVE')
 
 patch_label = np.array(patch_label).flatten()
 patch_pred = np.array(patch_pred).flatten()
 whole_label = np.array(whole_label).flatten()
 whole_pred = np.array(whole_pred).flatten()
-print('Number of whole images flagged as anomalous, normals, all: ', defective, normal, ind)
-print('Average encode time:', np.mean(encode_times))
-print('Average prediction time:', np.mean(prediction_times))
+
+#print('Average encode time:', np.mean(encode_times))
+#print('Average prediction time:', np.mean(prediction_times))
 
 evaluate_preds(patch_label, patch_pred, 'test patches')
 evaluate_preds(whole_label, whole_pred, 'test whole images')
 
-
-'''
-for name, metric in zip(model.metrics_names, model.metrics):
-    print(name, ': ', metric(patch_label, patch_pred).numpy())
-print()
-'''
 
 

@@ -173,6 +173,17 @@ def bright_encode(img, lbl, ae, delta):
     return aed_img, lbl
 
 @tf.function
+def bright(img_lbl, delta):
+    img, lbl = img_lbl
+    INPUT_DIM = tf.shape(img)[-1]
+    img = tf.cast(img, tf.float64)
+    img = tf.math.multiply(img, delta)
+    img = tf.clip_by_value(img, clip_value_min=0, clip_value_max=EIGHTBITMAX)
+    img = tf.cast(img, tf.float32)
+    img = tf.reshape(img, [-1, BOXSIZE, BOXSIZE, INPUT_DIM])
+    return img, lbl
+
+@tf.function
 def encode_rgb(img, lbl, ae):
     img = tf.reshape(img, [-1, PICTURESIZE_Y, PICTURESIZE_X, 1])
     img_rgb = tf_bayer2rgb(img)
