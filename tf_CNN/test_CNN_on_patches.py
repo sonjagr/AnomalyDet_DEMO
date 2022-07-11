@@ -2,8 +2,8 @@ import matplotlib.patches
 import numpy as np
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-from helpers.dataset_helpers import create_cnn_dataset, box_index_to_coords, box_to_labels
-from helpers.cnn_helpers import plot_examples, plot_metrics, crop, bayer2rgb, tf_bayer2rgb, encode, encode_rgb, format_data,patch_images
+from helpers.dataset_helpers import create_cnn_dataset, box_index_to_coords, process_anomalous_df_to_numpy
+from helpers.cnn_helpers import crop, encode, encode_rgb
 from old_codes.autoencoders import *
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve
@@ -17,15 +17,11 @@ import sklearn
 tf.keras.backend.clear_session()
 
 gpu = '3'
-choose_test_ds = 'c'
-th = 0.3
-rgb = False
-plot_ths = False
-history_is = True
-savename = 'final3_bayer_very_cleaned'
-savename = 'cleaned_testing_vgg_2'
+th = 0.01
+history_is = 0
+savename = 'cleaned_testing_vgg_small_morenorm1_bce'
 batch_size = 1
-epoch = 36
+epoch = 55
 
 database_dir = DataBaseFileLocation_gpu
 base_dir = TrainDir_gpu
@@ -65,36 +61,34 @@ print(model.summary())
 
 ae = AutoEncoder()
 print('Loading autoencoder and data...')
-ae.load(os.path.join(base_dir, 'checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_193_to_193_epochs'))
+ae.load(os.path.join(base_dir, 'checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_277_to_277_epochs'))
 
 dir_ae = 'AE/'
 dir_det = 'DET/'
 
-X_test_det_list = np.load(database_dir + dir_det + 'X_test_DET_final.npy', allow_pickle=True)
+X_test_norm_list_loaded = np.load(database_dir + 'NORMAL_TEST_20220711.npy', allow_pickle=True)
+X_test_norm_list_loaded = [images_dir_loc + s for s in X_test_norm_list_loaded]
 
-X_test_norm_list = np.load(database_dir + dir_ae + 'X_test_forcnn_clean.npy', allow_pickle=True)
-X_test_norm_list = [s.replace('F:/ScratchDetection/MeasurementCampaigns/', '') for s in X_test_norm_list]
+f = os.path.join(base_dir, 'db/TEST_DATABASE_20220711')
+with pd.HDFStore( f,  mode='r') as store:
+        test_db = store.select('db')
+        print(f'Reading {DataBaseFileLocation_local+f}')
+X_test_det_list, Y_test_det_list = process_anomalous_df_to_numpy(test_db)
 
 X_test_det_list = [images_dir_loc + s for s in X_test_det_list]
-X_test_norm_list = [images_dir_loc + s for s in X_test_norm_list]
+Y_test_det_list = Y_test_det_list.tolist()
 
-Y_test_det_list = np.load(database_dir + dir_det + 'Y_test_DET_final_cleaned.npy', allow_pickle=True).tolist()
-Y_test_det_list = np.array(Y_test_det_list).reshape(int(len(Y_test_det_list)/408), 408)
+N_det_test = len(Y_test_det_list)
 
-N_det_test = int(len(Y_test_det_list)/2)
+np.random.seed(42)
 
-X_val_det_list = X_test_det_list[:N_det_test]
-X_val_norm_list = X_test_norm_list[:N_det_test]
-Y_val_det_list = Y_test_det_list[:N_det_test]
+xtest = 5
+X_test_norm_list = np.random.choice(X_test_norm_list_loaded, int(N_det_test)*xtest, replace=False)
+Y_test_norm_list = np.full((len(X_test_norm_list), 408), 0.)
+print('Loaded number of ANOMALOUS test whole images: ', N_det_test)
+print('Number of AVAILABLE normal test whole images ', len(X_test_norm_list_loaded))
+print('Number of USED normal test whole images ', len(Y_test_norm_list))
 
-X_test_det_list = X_test_det_list[-N_det_test:]
-X_test_norm_list = X_test_norm_list[-N_det_test:]
-Y_test_det_list = Y_test_det_list[-N_det_test:]
-
-Y_test_norm_list = np.full((N_det_test, 408), 0.).tolist()
-Y_val_norm_list = np.full((N_det_test, 408), 0.).tolist()
-
-print('Loaded number of val, test samples: ', N_det_test)
 print('All loaded. Starting processing...')
 time1 = time.time()
 
@@ -150,8 +144,8 @@ def plot_roc(name, labels, predictions, title, **kwargs):
     plt.plot(100*fp, 100*tp, label=name, linewidth=2, **kwargs)
     plt.xlabel('False positives [%]')
     plt.ylabel('True positives [%]')
-    plt.xlim([-0.5,60])
-    plt.ylim([40,100.5])
+    plt.xlim([-0.5,50])
+    plt.ylim([50,100.5])
     plt.grid(True)
     plt.legend(loc='lower right')
     plt.title(title)
@@ -174,7 +168,7 @@ def rounding_thresh(input, thresh):
     rounded = np.round(input - thresh + 0.5)
     return rounded
 
-def plot_histogram(labels, pred_flat, p):
+def plot_histogram(labels, pred_flat, p, normalize):
     true_ano = []
     true_nor = []
     for i,j in zip(labels, pred_flat):
@@ -182,8 +176,8 @@ def plot_histogram(labels, pred_flat, p):
             true_nor.append(j)
         if i == 1:
             true_ano.append(j)
-    plt.hist(true_nor, bins = int(np.sqrt(len(true_nor))), color = 'green', density = True, alpha = 0.7, label = 'Normal')
-    plt.hist(true_ano, bins = int(np.sqrt(len(true_ano))), color = 'red', density = True, alpha = 0.7, label = 'Anomalous')
+    plt.hist(true_nor, bins = int(np.sqrt(len(true_nor))), color = 'green', density = normalize, alpha = 0.7, label = 'Normal')
+    plt.hist(true_ano, bins = int(np.sqrt(len(true_ano))), color = 'red', density = normalize, alpha = 0.7, label = 'Anomalous')
     plt.grid()
     plt.legend()
     plt.show()
@@ -213,7 +207,10 @@ def evaluate_preds(label, prediction, title):
     plot_cm(label, rounding_thresh(prediction, th), p = th, label='Confusion matrix for %s' % title)
     cm = confusion_matrix(label, rounding_thresh(prediction, th))
 
-    plot_histogram(label, prediction ,th)
+    if 'whole' not in title:
+        plot_histogram(label, prediction ,th, True)
+    if 'whole' in title:
+        plot_histogram(label, prediction, th, False)
 
     tn, fp, fn, tp = cm.ravel()
     print('tn, fp, fn, tp: ', tn, fp, fn, tp)
@@ -232,15 +229,24 @@ def evaluate_preds(label, prediction, title):
     print('FPR: ', np.round(fp / (fp + tn), 2))
     print('FNR: ', np.round(fn / (fn + tp), 2))
 
-    plot_roc("Test", label, prediction, 'ROC curve for for %s' % title, linestyle='--')
-    plot_prc("Test", label, prediction, 'PRC curve for for %s' % title, linestyle='--')
+    if 'whole' not in title:
+        plot_roc("Test", label, prediction, 'ROC curve for for %s' % title, linestyle='--')
+        plot_prc("Test", label, prediction, 'PRC curve for for %s' % title, linestyle='--')
 
 def plot_false(false_patches, title):
-    false_patches = false_patches
     l = int(len(false_patches)/(160*160))
     false_patches = false_patches.reshape(l, 160, 160)
     for i in range(0,l):
         plt.imshow(false_patches[i].reshape(160,160))
+        plt.title(title)
+        plt.show()
+
+def plot_false_wholes(false_wholes, title):
+    l = int(len(false_wholes) / (2720*3840))
+    false_wholes = false_wholes.reshape(l, 2720, 3840)
+    for i in range(0,l):
+        false_whole = false_wholes[i].reshape(2720, 3840)
+        plt.imshow(false_whole)
         plt.title(title)
         plt.show()
 
@@ -260,7 +266,8 @@ def eval_loop(dataset):
     prediction_times = []
     false_positive_patches = []
     false_negative_patches = []
-    for whole_img, whole_lbl in tqdm(dataset, total=200):
+    false_negative_wholes = []
+    for whole_img, whole_lbl in tqdm(dataset, total=N_det_test+N_det_test*xtest):
         ## crop and encode
         whole_img, whole_lbl = process_crop(whole_img, whole_lbl)
         enc_t1 = time.time()
@@ -297,13 +304,17 @@ def eval_loop(dataset):
         patch_label.append(whole_lbl)
 
         if len(pred_ids) > 0:
-            whole_pred.append(1)
+            whole_pred_i = 1
         elif len(pred_ids) == 0:
-            whole_pred.append(0)
+            whole_pred_i = 0
+        whole_pred = np.append(whole_pred, whole_pred_i)
         if len(lbl_ids) > 0:
-            whole_label.append(1)
+            whole_label_i = 1
         elif len(lbl_ids) == 0:
-            whole_label.append(0)
+            whole_label_i = 0
+        whole_label = np.append(whole_label, whole_label_i)
+        if whole_label_i == 1 and whole_pred_i == 0:
+            false_negative_wholes = np.append(false_negative_wholes, whole_img)
         if plot == 1:
             #print('Whole label : ', whole_label)
             img, ax = plt.subplots()
@@ -329,30 +340,21 @@ def eval_loop(dataset):
         ind = ind + 1
         if ind > 10:
             plot = 0
-    return whole_pred, whole_label, patch_pred , patch_label, false_positive_patches , false_negative_patches
+    return whole_pred, whole_label, patch_pred , patch_label, false_positive_patches , false_negative_patches, false_negative_wholes
 
-test_ds = create_cnn_dataset(np.append(X_test_det_list, X_test_norm_list, axis = 0), np.append(Y_test_det_list, Y_test_norm_list, axis = 0), _shuffle=False).batch(1)
-val_ds = create_cnn_dataset(np.append(X_val_det_list, X_val_norm_list, axis = 0), np.append(Y_val_det_list, Y_val_norm_list, axis = 0), _shuffle=False).batch(1)
-print(len(list(val_ds)))
-normal_test_ds = create_cnn_dataset(X_test_norm_list, Y_test_norm_list, _shuffle=False)
-anomalous_test_ds = create_cnn_dataset(X_test_det_list, Y_test_det_list, _shuffle=False)
-
-if choose_test_ds == 'a':
-    test_ds = anomalous_test_ds
-elif choose_test_ds == 'n':
-    test_ds = normal_test_ds
-
-test_ds = test_ds
+test_ds = create_cnn_dataset(np.append(X_test_det_list, X_test_norm_list, axis = 0), np.append(Y_test_det_list, Y_test_norm_list, axis = 0), _shuffle=False).shuffle(buffer_size=213).batch(1)
 
 ##choose threshold for classification
 print('CLASSIFICATION THRESHOLD: ', th)
 
-whole_pred, whole_label, patch_pred , patch_label, false_positive_patches , false_negative_patches = eval_loop(test_ds)
+whole_pred, whole_label, patch_pred , patch_label, false_positive_patches , false_negative_patches, false_negative_wholes = eval_loop(test_ds)
 
 false_positive_patches = np.array(false_positive_patches)
 false_negative_patches = np.array(false_negative_patches)
 #plot_false(false_positive_patches, 'False POSITIVE')
 plot_false(false_negative_patches, 'False NEGATIVE')
+
+plot_false_wholes(false_negative_wholes, 'False NEGATIVE')
 
 patch_label = np.array(patch_label).flatten()
 patch_pred = np.array(patch_pred).flatten()
@@ -364,6 +366,3 @@ whole_pred = np.array(whole_pred).flatten()
 
 evaluate_preds(patch_label, patch_pred, 'test patches')
 evaluate_preds(whole_label, whole_pred, 'test whole images')
-
-
-

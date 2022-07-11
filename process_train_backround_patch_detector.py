@@ -63,18 +63,19 @@ dir_ae = 'AE/'
 images_dir_loc = imgDir_gpu
 
 ## extract normal images for training
-X_train = np.load(os.path.join(base_dir, dir_det, 'X_train_DET_backround.npy'), allow_pickle=True)
-Y_train = np.load(os.path.join(base_dir, dir_det, 'Y_train_DET_backround.npy'), allow_pickle=True).tolist()
+X_train = np.load(os.path.join(base_dir, dir_det, 'X_train_DET_backround_20220711.npy'), allow_pickle=True)
+Y_train = np.load(os.path.join(base_dir, dir_det, 'Y_train_DET_backround_20220711.npy'), allow_pickle=True).tolist()
 X_train = [images_dir_loc + s for s in X_train]
 
-X_test = np.load(os.path.join(base_dir, dir_det, 'X_test_DET_backround.npy'), allow_pickle=True)
-Y_test = np.load(os.path.join(base_dir, dir_det, 'Y_test_DET_backround.npy'), allow_pickle=True).tolist()
+X_test = np.load(os.path.join(base_dir, dir_det, 'X_test_DET_backround_20220711.npy'), allow_pickle=True)
+Y_test = np.load(os.path.join(base_dir, dir_det, 'Y_test_DET_backround_20220711.npy'), allow_pickle=True).tolist()
 X_test = [images_dir_loc + s for s in X_test]
 
 print('All loaded. Starting dataset creation...')
 
-train_ds = create_cnn_dataset(X_train, Y_train, _shuffle=False)
-test_ds = create_cnn_dataset(X_test, Y_test, _shuffle=False).take(103)
+ds = create_cnn_dataset(X_train, Y_train, _shuffle=False).shuffle(1000, seed=42)
+test_ds = ds.take(100)
+train_ds = ds.skip(100)
 
 METRICS = [
       tf.keras.metrics.TruePositives(name='tp'),
@@ -105,20 +106,16 @@ test_ds_nob = test_ds.map(process_crop, num_parallel_calls=tf.data.experimental.
 
 ## apply patching
 train_ds = train_ds_nob.flat_map(patch_images).unbatch().cache()
-test_ds = test_ds_nob.flat_map(patch_images).unbatch().shuffle(107*408)
+test_ds = test_ds_nob.flat_map(patch_images).unbatch().shuffle(200*408)
 
 train_ds = train_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 test_ds = test_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-train_ds_final = train_ds.shuffle(850*408, reshuffle_each_iteration=True)
+train_ds_final = train_ds.shuffle(1000*408, reshuffle_each_iteration=True)
 test_ds_final = test_ds.cache()
 
 train_ds_batch = train_ds_final.batch(batch_size=batch_size, drop_remainder = True)
 test_ds_batch = test_ds_final.batch(batch_size=batch_size, drop_remainder = False)
-
-#plot_examples(train_ds_anomaly.skip(2).take(5))
-#plot_examples(train_ds_normal.skip(2).take(5))
-#plot_examples(val_ds.take(5))
 
 optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 

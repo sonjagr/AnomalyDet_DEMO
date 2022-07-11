@@ -1,1 +1,0 @@
-  Epochs: 1000  Batch_size: 512  Model_ID: model_whole_final4  Savename: final_split_test  Lr: 0.0001  Data format: True  AE: True  Nbr of times normal: 30  Anomaly_weight: 10

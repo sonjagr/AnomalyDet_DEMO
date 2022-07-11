@@ -1,1 +1,0 @@
-  Epochs: 1000  Batch_size: 4080  Model_ID: model_whole_smaller  Savename: moreerror_whole_smaller  Lr: 0.0001

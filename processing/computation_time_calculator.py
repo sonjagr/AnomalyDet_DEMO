@@ -1,15 +1,7 @@
 import numpy as np
-import tensorflow as tf
-import pickle, argparse, random
-from pathlib import Path
-import tensorflow as tf
-from tensorflow import keras
-from sklearn.model_selection import train_test_split
-from helpers.dataset_helpers import create_dataset
-from autoencoders2 import *
-from common import *
+import random
+from AE.autoencoders2 import *
 from sklearn.metrics import confusion_matrix
-import matplotlib.pyplot as plt
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 ae = AutoEncoder()

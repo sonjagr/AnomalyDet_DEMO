@@ -76,7 +76,7 @@ def closest_node(node, nodes):
     return cn[0], cn[1], dx, dy
 
 ## gets list of bad files (rescans) that are not in database yet (TQ)
-def get_bad_files_to_process(DataBaseFileLocation, DataBaseFile, imgDir, Campaigns, extra_cols):
+def get_bad_files_to_process(imgDir, Campaigns, extra_cols, loaded_db):
     normal_image_names = "^initial_scan_pad(?P<Pad>.*)_step(?P<Step>.*).npy"
     anomalous_image_names = "^rescan_pad(?P<Pad>.*)_step(?P<Step>.*).npy"
 
@@ -127,13 +127,6 @@ def get_bad_files_to_process(DataBaseFileLocation, DataBaseFile, imgDir, Campaig
     # this is a pandas data frame containing all images read and sorted from the ImageDir with the info of rescanned or not
     all_files_db = pd.DataFrame(all_files_db, columns=DEF_COLS + extra_cols)
     all_files_db = all_files_db.set_index(keys=["Campaign", "DUT", "Step"])
-
-    # 2. load existing database file that is or is not empty
-    loaded_db = None
-    if os.path.exists(DataBaseFileLocation + DataBaseFile):
-        print("Reading existing database file from", DataBaseFile)
-        with pd.HDFStore(DataBaseFileLocation + DataBaseFile, mode="r+") as store:
-            loaded_db = store["db"]
 
     # 3. either create database or extend existing database with the good images
     if loaded_db is None:

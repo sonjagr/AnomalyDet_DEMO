@@ -6,6 +6,18 @@ from common import *
 import random
 import cv2
 
+def process_anomalous_df_to_numpy(db):
+    db = db[db['orig_boxY'].map(len) > 0]
+    db = db.reset_index()[['Campaign', 'DUT', 'FileName', 'orig_boxY', 'orig_boxX']]
+    db = db.drop(db.loc[(db.Campaign == 'September2021_PM8') & (db.DUT == '8inch_198ch_N3311_7')].index)
+    db['Path'] = db.Campaign + '/' + db.DUT + '/' + db.FileName
+    db = db.drop(['Campaign', 'DUT', 'FileName'], axis =1)
+    db['crop_lbls'] = pd.NaT
+    db['crop_lbls'] = db.apply(lambda x: box_to_labels(x.orig_boxX, x.orig_boxY).flatten(), axis=1)
+    X_list = db['Path'].to_numpy()
+    Y_list = db['crop_lbls'].to_numpy().flatten()
+    return X_list, Y_list
+
 ## resize images to the required size, crop from bottom
 def resize(item):
     model = tf.keras.Sequential([tf.keras.layers.Cropping2D(cropping=((0, 16),(0, 0)))])

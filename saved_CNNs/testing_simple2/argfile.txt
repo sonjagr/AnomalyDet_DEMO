@@ -1,1 +1,0 @@
-Epochs: 400Batch_size: 1024Model_ID: model_simple2Savename: testing_simple2Lr: 0.0001
