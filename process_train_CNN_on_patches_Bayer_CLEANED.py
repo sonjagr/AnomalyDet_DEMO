@@ -1,6 +1,6 @@
 import numpy as np
 from helpers.dataset_helpers import create_cnn_dataset, process_anomalous_df_to_numpy
-from helpers.cnn_helpers import rotate, bright, format_data, patch_images, flip, plot_metrics, plot_examples, crop, bright_encode, encode, tf_bayer2rgb
+from helpers.cnn_helpers import rotate,rotate_1,rotate_2,rotate_3, bright, format_data, flip_h, flip_v, patch_images, flip, plot_metrics, plot_examples, crop, bright_encode, encode, tf_bayer2rgb
 from old_codes.autoencoders import *
 import random, time, argparse, os
 import tensorflow as tf
@@ -103,7 +103,7 @@ N_det_train = len(X_train_det_list)
 
 np.random.seed(42)
 
-times_normal = 5
+times_normal = 7
 needed_nbr_of_normals = (N_det_train + N_det_val)*times_normal
 
 X_list_norm = np.random.choice(X_list_norm, needed_nbr_of_normals, replace=False)
@@ -124,8 +124,8 @@ train_ds = create_cnn_dataset(X_train_det_list, Y_train_det_list.tolist(), _shuf
 val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list.tolist(), _shuffle=False)
 
 ## only normal images
-normal_train_ds = create_cnn_dataset(X_train_normal_list, np.full((int(N_normal_train), 408), 0.))
-normal_val_ds = create_cnn_dataset(X_val_normal_list, np.full((int(N_normal_val), 408), 0.))
+normal_train_ds = create_cnn_dataset(X_train_normal_list, np.full((int(N_normal_train), PATCHES), 0.))
+normal_val_ds = create_cnn_dataset(X_val_normal_list, np.full((int(N_normal_val), PATCHES), 0.))
 
 METRICS = [
       tf.keras.metrics.TruePositives(name='tp'),
@@ -238,28 +238,37 @@ if bright_aug == True:
 if bright_aug == False:
     aug_size = nbr_anom_train_patches
 
-rotations = np.random.randint(low = 1, high = 4, size = aug_size).astype('int32')
-counter2 = tf.data.Dataset.from_tensor_slices(rotations)
-train_ds_to_rotate = tf.data.Dataset.zip((train_ds_anomaly, counter2))
+#rotations = np.random.randint(low = 1, high = 4, size = aug_size).astype('int32')
+#counter2 = tf.data.Dataset.from_tensor_slices(rotations)
+train_ds_to_rotate = train_ds_anomaly
 
-flip_seeds = np.random.randint(low = 1, high = 11, size = aug_size).astype('int32')
-counter3 = tf.data.Dataset.from_tensor_slices(flip_seeds)
-train_ds_to_flip = tf.data.Dataset.zip((train_ds_anomaly, counter3))
+rotated_1 = train_ds_to_rotate.map(rotate_1, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+rotated_2 = train_ds_to_rotate.map(rotate_2, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+rotated_3 = train_ds_to_rotate.map(rotate_3, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+train_ds_rotated = train_ds_anomaly.concatenate(rotated_1).concatenate(rotated_2).concatenate(rotated_3)
 
-train_ds_rotated = train_ds_anomaly.concatenate(train_ds_to_rotate.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE))
-train_ds_rotated_flipped = train_ds_rotated.concatenate(train_ds_to_flip.map(flip, num_parallel_calls=tf.data.experimental.AUTOTUNE))
+#flip_seeds = np.random.randint(low = 1, high = 11, size = aug_size).astype('int32')
+#counter3 = tf.data.Dataset.from_tensor_slices(flip_seeds)
+train_ds_to_flip = train_ds_anomaly
 
-augmented = train_ds_rotated_flipped
+flipped_h = train_ds_to_flip.map(flip_h, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+flipped_v = train_ds_to_flip.map(flip_v, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+train_flipped = flipped_v.concatenate(flipped_h)
+
+#train_ds_rotated = train_ds_anomaly.concatenate(train_ds_to_rotate.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE))
+train_ds_rotated_flipped = train_ds_rotated.concatenate(train_flipped)
+
+augmented = train_ds_rotated_flipped.cache()
 
 #normal_train = len(list(normal_train_ds))
-anomalous_train = aug_size * 3
-normal_train = N_normal_train*408
+anomalous_train = aug_size * 6
+normal_train = N_normal_train*PATCHES
 frac = int(normal_train/anomalous_train)
 print('    Number of normal, anomalous training samples: ', normal_train, anomalous_train)
 print('    Anomaly weight in training data: ', frac)
 
 val_ds_final = val_ds_anomaly.concatenate(normal_val_ds.take(nbr_anom_val_patches*frac)).cache()
-train_ds_final = normal_train_ds.concatenate(augmented).cache()
+train_ds_final = normal_train_ds.concatenate(augmented)
 
 train_ds_final = train_ds_final.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 val_ds_final = val_ds_final.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -278,9 +287,11 @@ print('Training and validation datasets created (processing time was {:.2f} s), 
 optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
 if loss == 'bce':
+    print('    Using bce')
     loss = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 elif loss == 'fl':
-    loss = SigmoidFocalCrossEntropy(gamma = gamma, reduction=tf.keras.losses.Reduction.AUTO)
+    print('    Using focal loss with gamma = %s' % gamma)
+    loss = SigmoidFocalCrossEntropy(gamma = gamma, alpha=0.75)
 model.compile(optimizer = optimizer, loss = loss, metrics=METRICS)
 
 print(model.summary())

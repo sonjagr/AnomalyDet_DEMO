@@ -88,6 +88,20 @@ def flip(image_label, seed):
     return tf.reshape(flipped, [BOXSIZE, BOXSIZE, INPUT_DIM]), label
 
 @tf.function
+def flip_h(image, label):
+    INPUT_DIM = tf.shape(image)[-1]
+    image = tf.reshape(image, [BOXSIZE, BOXSIZE, INPUT_DIM])
+    flipped = tf.image.flip_left_right(image)
+    return tf.reshape(flipped, [BOXSIZE, BOXSIZE, INPUT_DIM]), label
+
+@tf.function
+def flip_v(image, label):
+    INPUT_DIM = tf.shape(image)[-1]
+    image = tf.reshape(image, [BOXSIZE, BOXSIZE, INPUT_DIM])
+    flipped = tf.image.flip_up_down(image)
+    return tf.reshape(flipped, [BOXSIZE, BOXSIZE, INPUT_DIM]), label
+
+@tf.function
 def patch_images(img, lbl):
     INPUT_DIM = tf.shape(img)[-1]
     split_img = tf.image.extract_patches(images=img, sizes=[1, BOXSIZE, BOXSIZE, 1], strides=[1, BOXSIZE, BOXSIZE, 1], rates=[1, 1, 1, 1], padding='VALID')
@@ -213,6 +227,27 @@ def rotate(image_label, rots):
     INPUT_DIM = tf.shape(image)[-1]
     image = tf.reshape(image, [BOXSIZE, BOXSIZE, INPUT_DIM])
     rot = tf.image.rot90(image, k=rots)
+    return tf.reshape(rot, [BOXSIZE, BOXSIZE, INPUT_DIM]), label
+
+@tf.function
+def rotate_1(image, label):
+    INPUT_DIM = tf.shape(image)[-1]
+    image = tf.reshape(image, [BOXSIZE, BOXSIZE, INPUT_DIM])
+    rot = tf.image.rot90(image, k=1)
+    return tf.reshape(rot, [BOXSIZE, BOXSIZE, INPUT_DIM]), label
+
+@tf.function
+def rotate_2(image, label):
+    INPUT_DIM = tf.shape(image)[-1]
+    image = tf.reshape(image, [BOXSIZE, BOXSIZE, INPUT_DIM])
+    rot = tf.image.rot90(image, k=2)
+    return tf.reshape(rot, [BOXSIZE, BOXSIZE, INPUT_DIM]), label
+
+@tf.function
+def rotate_3(image, label):
+    INPUT_DIM = tf.shape(image)[-1]
+    image = tf.reshape(image, [BOXSIZE, BOXSIZE, INPUT_DIM])
+    rot = tf.image.rot90(image, k=3)
     return tf.reshape(rot, [BOXSIZE, BOXSIZE, INPUT_DIM]), label
 
 @tf.function

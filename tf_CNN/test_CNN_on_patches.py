@@ -17,11 +17,11 @@ import sklearn
 tf.keras.backend.clear_session()
 
 gpu = '3'
-th = 0.01
-history_is = 0
-savename = 'cleaned_testing_vgg_small_morenorm1_bce'
+th = 0.05
+history_is = 1
+savename = 'clean_moredata_fl'
 batch_size = 1
-epoch = 55
+epoch = 20
 
 database_dir = DataBaseFileLocation_gpu
 base_dir = TrainDir_gpu
@@ -83,7 +83,7 @@ N_det_test = len(Y_test_det_list)
 np.random.seed(42)
 
 xtest = 5
-X_test_norm_list = np.random.choice(X_test_norm_list_loaded, int(N_det_test)*xtest, replace=False)
+X_test_norm_list = np.random.choice(X_test_norm_list_loaded, (int(N_det_test)*xtest)+74, replace=False)
 Y_test_norm_list = np.full((len(X_test_norm_list), 408), 0.)
 print('Loaded number of ANOMALOUS test whole images: ', N_det_test)
 print('Number of AVAILABLE normal test whole images ', len(X_test_norm_list_loaded))
@@ -208,7 +208,7 @@ def evaluate_preds(label, prediction, title):
     cm = confusion_matrix(label, rounding_thresh(prediction, th))
 
     if 'whole' not in title:
-        plot_histogram(label, prediction ,th, True)
+        plot_histogram(label, prediction ,th, False)
     if 'whole' in title:
         plot_histogram(label, prediction, th, False)
 
@@ -267,7 +267,7 @@ def eval_loop(dataset):
     false_positive_patches = []
     false_negative_patches = []
     false_negative_wholes = []
-    for whole_img, whole_lbl in tqdm(dataset, total=N_det_test+N_det_test*xtest):
+    for whole_img, whole_lbl in tqdm(dataset, total=500):
         ## crop and encode
         whole_img, whole_lbl = process_crop(whole_img, whole_lbl)
         enc_t1 = time.time()
