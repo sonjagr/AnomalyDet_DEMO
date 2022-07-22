@@ -74,8 +74,8 @@ X_test = [images_dir_loc + s for s in X_test]
 print('All loaded. Starting dataset creation...')
 
 ds = create_cnn_dataset(X_train, Y_train, _shuffle=False).shuffle(1000, seed=42)
-test_ds = ds.take(100)
-train_ds = ds.skip(100)
+test_ds = ds.take(60)
+train_ds = ds.skip(60)
 
 METRICS = [
       tf.keras.metrics.TruePositives(name='tp'),

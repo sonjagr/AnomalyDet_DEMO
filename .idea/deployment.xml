@@ -149,6 +149,13 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="sgroenro@pclcdgpu:22 (8)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
     </serverData>
     <option name="myAutoUpload" value="ALWAYS" />
   </component>

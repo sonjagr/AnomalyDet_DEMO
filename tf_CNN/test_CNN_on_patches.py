@@ -3,9 +3,10 @@ import numpy as np
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from helpers.dataset_helpers import create_cnn_dataset, box_index_to_coords, process_anomalous_df_to_numpy
-from helpers.cnn_helpers import crop, encode, encode_rgb
+from helpers.cnn_helpers import crop, encode
 from old_codes.autoencoders import *
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve
 import random, time
 import tensorflow as tf
@@ -16,16 +17,21 @@ from sklearn.metrics import confusion_matrix
 import sklearn
 tf.keras.backend.clear_session()
 
+## USER SELECTS THESE
 gpu = '3'
-th = 0.05
-history_is = 1
+th = 0.03
+plot_th = 1
+history_is = 0
 savename = 'clean_moredata_fl'
 batch_size = 1
-epoch = 20
+epoch = '20'
 
+## USED FOR SETTING PATHS
 database_dir = DataBaseFileLocation_gpu
 base_dir = TrainDir_gpu
 images_dir_loc = imgDir_gpu
+dir_ae = 'AE/'
+dir_det = 'DET/'
 
 print('Analysing model: ' + savename + ', epoch: ' +str(epoch))
 
@@ -33,6 +39,7 @@ if gpu is not 0:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
 random.seed(42)
+np.random.seed(42)
 
 def plot_training(df, savename):
     train_loss = df['loss']
@@ -55,39 +62,43 @@ if history_is:
     plot_training(history_df, savename)
 
 model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, epoch)), compile=False)
-br_model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/br_br_testing_gputf/br_cnn_br_testing_gputf'), compile=False)
-
+br_model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/br_br_1_new/br_cnn_br_1_new'), compile=False)
 print(model.summary())
 
 ae = AutoEncoder()
-print('Loading autoencoder and data...')
+print('    Loading autoencoder and data...')
 ae.load(os.path.join(base_dir, 'checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_277_to_277_epochs'))
 
-dir_ae = 'AE/'
-dir_det = 'DET/'
+###training data
+f_train = os.path.join(base_dir, 'db/TRAIN_DATABASE_20220711')
+with pd.HDFStore( f_train,  mode='r') as store:
+        train_val_db = store.select('db')
+        print(f'Reading {f_train}')
+X_train_val_list, Y_train_val_list = process_anomalous_df_to_numpy(train_val_db)
+_, X_val_det_list, _, Y_val_det_list = train_test_split(X_train_val_list, Y_train_val_list, test_size = 70, random_state = 42)
+X_val_det_list = [images_dir_loc + s for s in X_val_det_list]
+##
+
+### testing data
+f_test = os.path.join(base_dir, 'db/TEST_DATABASE_20220711')
+with pd.HDFStore(f_test,  mode='r') as store:
+        test_db = store.select('db')
+        print(f'Reading {f_test}')
+X_test_det_list, Y_test_det_list = process_anomalous_df_to_numpy(test_db)
+X_test_det_list = [images_dir_loc + s for s in X_test_det_list]
+Y_test_det_list = Y_test_det_list.tolist()
+print(X_test_det_list[1])
+N_det_test = len(Y_test_det_list)
 
 X_test_norm_list_loaded = np.load(database_dir + 'NORMAL_TEST_20220711.npy', allow_pickle=True)
 X_test_norm_list_loaded = [images_dir_loc + s for s in X_test_norm_list_loaded]
 
-f = os.path.join(base_dir, 'db/TEST_DATABASE_20220711')
-with pd.HDFStore( f,  mode='r') as store:
-        test_db = store.select('db')
-        print(f'Reading {DataBaseFileLocation_local+f}')
-X_test_det_list, Y_test_det_list = process_anomalous_df_to_numpy(test_db)
-
-X_test_det_list = [images_dir_loc + s for s in X_test_det_list]
-Y_test_det_list = Y_test_det_list.tolist()
-
-N_det_test = len(Y_test_det_list)
-
-np.random.seed(42)
-
 xtest = 5
 X_test_norm_list = np.random.choice(X_test_norm_list_loaded, (int(N_det_test)*xtest)+74, replace=False)
 Y_test_norm_list = np.full((len(X_test_norm_list), 408), 0.)
-print('Loaded number of ANOMALOUS test whole images: ', N_det_test)
-print('Number of AVAILABLE normal test whole images ', len(X_test_norm_list_loaded))
-print('Number of USED normal test whole images ', len(Y_test_norm_list))
+print('    Loaded number of ANOMALOUS test whole images: ', N_det_test)
+print('    Number of AVAILABLE normal test whole images ', len(X_test_norm_list_loaded))
+print('    Number of USED normal test whole images ', len(Y_test_norm_list))
 
 print('All loaded. Starting processing...')
 time1 = time.time()
@@ -107,13 +118,7 @@ def process_crop_encode(image, label):
 @tf.function
 def process_crop(image, label):
     image, label = crop(image, label)
-    return image,label
-
-@tf.function
-def process_crop_encode_rgb(image, label):
-    image, label = crop(image, label)
-    image, label = encode_rgb(image, label, ae)
-    return image,label
+    return image, label
 
 def plot_cm(labels, predictions, p, label):
     cm = confusion_matrix(labels,predictions, normalize='true')
@@ -122,21 +127,6 @@ def plot_cm(labels, predictions, p, label):
     cm_display = sklearn.metrics.ConfusionMatrixDisplay(cm).plot()
     plt.title(label)
     plt.show()
-
-def clean(test_pred, test_ds, p):
-    test_pred = test_pred.flatten()
-    i = 0
-    for x, y in test_ds:
-        if test_pred[i] > p:
-            patch = x.numpy().flatten()
-            maximum = np.max(patch)*0.8
-            za = (patch > maximum).sum()
-            print(za)
-            if za < 10:
-                print('label cleaned')
-                test_pred[i] = 0
-        i = i+1
-    return test_pred
 
 def plot_roc(name, labels, predictions, title, **kwargs):
     fp, tp, _ = sklearn.metrics.roc_curve(labels, predictions)
@@ -168,7 +158,7 @@ def rounding_thresh(input, thresh):
     rounded = np.round(input - thresh + 0.5)
     return rounded
 
-def plot_histogram(labels, pred_flat, p, normalize):
+def plot_histogram(labels, pred_flat, p, normalize, ylim):
     true_ano = []
     true_nor = []
     for i,j in zip(labels, pred_flat):
@@ -176,14 +166,18 @@ def plot_histogram(labels, pred_flat, p, normalize):
             true_nor.append(j)
         if i == 1:
             true_ano.append(j)
+    print(len(true_nor), len(true_ano))
+    plt.grid()
+    plt.ylim(0, ylim)
     plt.hist(true_nor, bins = int(np.sqrt(len(true_nor))), color = 'green', density = normalize, alpha = 0.7, label = 'Normal')
     plt.hist(true_ano, bins = int(np.sqrt(len(true_ano))), color = 'red', density = normalize, alpha = 0.7, label = 'Anomalous')
-    plt.grid()
     plt.legend()
     plt.show()
 
-def plot_thresholds():
-    thresholds = np.arange(0.001, 0.2, 0.001)
+def plot_thresholds(val_labels, val_pred):
+    thresholds = np.arange(0.001, 0.4, 0.005)
+    val_pred_flat = np.array(val_pred).flatten()
+    val_labels = np.array(val_labels).flatten()
     fps = []
     fns = []
     for thresh in thresholds:
@@ -208,23 +202,23 @@ def evaluate_preds(label, prediction, title):
     cm = confusion_matrix(label, rounding_thresh(prediction, th))
 
     if 'whole' not in title:
-        plot_histogram(label, prediction ,th, False)
-    if 'whole' in title:
-        plot_histogram(label, prediction, th, False)
+        plot_histogram(label, prediction ,th, True, 100)
+    elif 'whole' in title:
+        plot_histogram(label, prediction, th, False, 250)
 
     tn, fp, fn, tp = cm.ravel()
     print('tn, fp, fn, tp: ', tn, fp, fn, tp)
 
-    print('Precision: ', np.round(tp / (tp + fp),2))
-    print('recall: ', np.round(tp / (tp + fn),2))
+    print('Precision: ', np.round(tp / (tp + fp), 2))
+    print('recall: ', np.round(tp / (tp + fn), 2))
     error = (fp + fn) / (tp + tn + fp + fn)
     print('Error: ', np.round(error, 2))
 
     acc = 1 - error
     print('Accuracy: ', np.round(acc, 2))
 
-    f2 = sklearn.metrics.fbeta_score(label, rounding_thresh(prediction, th), beta=2)
-    print('Fbeta: ', np.round(f2,2))
+    f2 = sklearn.metrics.fbeta_score(label, rounding_thresh(prediction, th), beta = 2)
+    print('Fbeta: ', np.round(f2, 2))
 
     print('FPR: ', np.round(fp / (fp + tn), 2))
     print('FNR: ', np.round(fn / (fn + tp), 2))
@@ -255,7 +249,7 @@ def format_data_batch(image, label):
     label = tf.cast(label, tf.float32)
     return image, label
 
-def eval_loop(dataset):
+def eval_loop(dataset, test = 1, N=500):
     ind = 0
     whole_pred = []
     whole_label = []
@@ -267,7 +261,7 @@ def eval_loop(dataset):
     false_positive_patches = []
     false_negative_patches = []
     false_negative_wholes = []
-    for whole_img, whole_lbl in tqdm(dataset, total=500):
+    for whole_img, whole_lbl in tqdm(dataset, total=N):
         ## crop and encode
         whole_img, whole_lbl = process_crop(whole_img, whole_lbl)
         enc_t1 = time.time()
@@ -315,7 +309,7 @@ def eval_loop(dataset):
         whole_label = np.append(whole_label, whole_label_i)
         if whole_label_i == 1 and whole_pred_i == 0:
             false_negative_wholes = np.append(false_negative_wholes, whole_img)
-        if plot == 1:
+        if plot == 1 and test == 1:
             #print('Whole label : ', whole_label)
             img, ax = plt.subplots()
             ax.imshow(whole_img.numpy().reshape(2720, 3840))
@@ -340,14 +334,18 @@ def eval_loop(dataset):
         ind = ind + 1
         if ind > 10:
             plot = 0
-    return whole_pred, whole_label, patch_pred , patch_label, false_positive_patches , false_negative_patches, false_negative_wholes
+    return whole_pred, whole_label, patch_pred, patch_label, false_positive_patches, false_negative_patches, false_negative_wholes
 
 test_ds = create_cnn_dataset(np.append(X_test_det_list, X_test_norm_list, axis = 0), np.append(Y_test_det_list, Y_test_norm_list, axis = 0), _shuffle=False).shuffle(buffer_size=213).batch(1)
 
-##choose threshold for classification
+if plot_th == 1:
+    val_det_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list.tolist(), _shuffle=False).batch(1)
+    whole_pred_val, whole_label_val, patch_pred_val, patch_label_val, _, _, _ = eval_loop(val_det_ds, 0 , N= 70)
+    plot_thresholds(val_labels = patch_label_val, val_pred = patch_pred_val)
+
 print('CLASSIFICATION THRESHOLD: ', th)
 
-whole_pred, whole_label, patch_pred , patch_label, false_positive_patches , false_negative_patches, false_negative_wholes = eval_loop(test_ds)
+whole_pred, whole_label, patch_pred, patch_label, false_positive_patches, false_negative_patches, false_negative_wholes = eval_loop(test_ds, 1, N= 500)
 
 false_positive_patches = np.array(false_positive_patches)
 false_negative_patches = np.array(false_negative_patches)

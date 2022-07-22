@@ -17,15 +17,15 @@ if gpu != 0:
 
 random.seed(42)
 base_dir = ''
-base_dir = TrainDir_pc
-images_dir_loc = imgDir_pc
-dir_det = 'db/DET/'
-dir_ae = 'db/AE/'
+base_dir = TrainDir_gpu
+images_dir_loc = imgDir_gpu
+dir_det = '../db/DET/'
+dir_ae = '../db/AE/'
 
 if use_ae:
     ae = AutoEncoder()
     print('Loading autoencoder and data...')
-    ae.load(os.path.join(base_dir, 'checkpoints/TQ3_1_TQ3_more_data/model_AE_TQ3_500_to_500_epochs'))
+    ae.load(os.path.join(base_dir, 'checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_277_to_277_epochs'))
 
 ## extract normal images for training
 X_train_list_ae = np.load(os.path.join(base_dir, dir_ae, 'X_train_NOT_AE.npy'), allow_pickle=True)
@@ -123,7 +123,7 @@ print('    Number of anomalous patches: ', nbr_anom_patches)
 
 aug_size = nbr_anom_patches
 
-#plot_examples(train_ds_anomaly)
+plot_examples(train_ds_anomaly.shuffle(100).take(3))
 
 rotations = np.random.randint(low = 1, high = 4, size = aug_size).astype('int32')
 counter2 = tf.data.Dataset.from_tensor_slices(rotations)
@@ -144,6 +144,7 @@ augmented = train_ds_rotated_flipped.cache()
 anomalous = nbr_anom_patches*3
 
 train_ds_normal_all = train_ds.filter(lambda x,y: y == 0.)
+plot_examples(train_ds_normal_all.skip(10).take(3))
 normal = N_det_train*408-nbr_anom_patches
 train_ds_normal_all = train_ds_normal_all
 
@@ -156,12 +157,9 @@ train_ds_final = train_ds_normal_all.concatenate(augmented).cache()
 #plot_examples(augmented.take(30))
 train_ds_final = train_ds_final.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 val_ds_final = val_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-plot_examples(val_ds_final.filter(lambda x, y: y == 0.).take(10))
-plot_examples(val_ds_final.filter(lambda x, y: y == 1.).take(10))
-
+##plot_examples(val_ds_final.filter(lambda x, y: y == 0.).take(10))
+#plot_examples(val_ds_final.filter(lambda x, y: y == 1.).take(10))
 
 print('    Number of normal, anomalous samples: ', normal, anomalous)
 print('    Anomaly weight in data: ', normal/anomalous)
 
-train_ds_final = train_ds_final.shuffle(buffer_size=normal+anomalous, reshuffle_each_iteration=True)
-val_ds_final = val_ds_final.cache()

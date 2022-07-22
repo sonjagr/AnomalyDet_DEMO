@@ -1,7 +1,7 @@
 import numpy as np
 import pickle
 from helpers.dataset_helpers import  create_cnn_dataset
-from AE.autoencoders2 import *
+from autoencoders2 import *
 from common import *
 import matplotlib.pyplot as plt
 import os
@@ -157,11 +157,11 @@ saveloc = os.path.join(home_dir, 'AE_plots')
 path_to_loss_file = os.path.join(home_dir, 'checkpoints/%s_1_%s/cost.pkl' % (model_name,savename))
 losses_plot(path_to_loss_file, model_name, save= True, saveloc = saveloc)
 
-epoch = 130
+epoch = 227
 base_dir = '../db/'
 dir_det = 'DET/'
 images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
-path_to_ae = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/%s_1_%s/AE_%s_%s_to_%s_epochs' % (model_name, savename, model_name, epoch, epoch)
+path_to_ae = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_277_to_277_epochs'
 #images_dir_loc = 'F:/ScratchDetection/MeasurementCampaigns/'
 
 X_train_det_list = np.load(base_dir + dir_det + 'X_train_DET.npy', allow_pickle=True)
@@ -170,13 +170,13 @@ Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET.npy', allow_pickle=
 def_dataset = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=False)
 
 plotting_dataset = def_dataset.shuffle(100, seed = 1).take(5)
-plot_aed(path_to_ae, plotting_dataset, True, saveloc)
+#plot_aed(path_to_ae, plotting_dataset, True, saveloc)
 
 boxX = [(3000,3600),(500,1100),(1000,1500)]
 boxY = [(0,300),(0,400),(0,400)]
 lower = [(0.55,0.3),(0.3,0.2),(0.55,0.3)]
-times = 7
-plot_aed_zoom(plotting_dataset, boxX, boxY, lower, times)
+times = 6
+plot_aed_zoom(path_to_ae, plotting_dataset, boxX, boxY, lower, times, False, None)
 
 boxX = [(3000,3500)]
 boxY = [(0,300)]

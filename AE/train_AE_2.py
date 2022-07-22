@@ -7,7 +7,7 @@ from pathlib import Path
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from helpers.dataset_helpers import create_dataset, resize
-from AE.autoencoders2 import *
+from autoencoders2 import *
 from common import *
 
 parser = argparse.ArgumentParser()

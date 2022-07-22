@@ -1,6 +1,6 @@
 import numpy as np
 import random
-from AE.autoencoders2 import *
+from autoencoders2 import *
 from sklearn.metrics import confusion_matrix
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"

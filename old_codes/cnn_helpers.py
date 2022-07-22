@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import random
-from AE.autoencoders2 import *
+from autoencoders2 import *
 
 ## calculate the output dimensions of a conv layer
 def cnn_layer_dim(input_size, kernel_size, strides, padding):

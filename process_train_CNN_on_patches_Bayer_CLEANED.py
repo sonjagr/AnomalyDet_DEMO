@@ -103,11 +103,11 @@ N_det_train = len(X_train_det_list)
 
 np.random.seed(42)
 
-times_normal = 7
+times_normal = 6
 needed_nbr_of_normals = (N_det_train + N_det_val)*times_normal
 
 X_list_norm = np.random.choice(X_list_norm, needed_nbr_of_normals, replace=False)
-X_train_normal_list, X_val_normal_list = train_test_split(X_list_norm, test_size = 70*times_normal, random_state = 42)
+X_train_normal_list, X_val_normal_list = train_test_split(X_list_norm, test_size = N_det_val*times_normal, random_state = 42)
 
 X_train_normal_list = [images_dir_loc + s for s in X_train_normal_list]
 X_val_normal_list = [images_dir_loc + s for s in X_val_normal_list]
@@ -148,10 +148,24 @@ if load == 0:
         model = VGG16()
     if model_ID == 'vgg_small':
         model = VGG16_small()
-    if model_ID == 'vgg_small_do':
-        model = VGG16_small_do()
+    if model_ID == 'vgg_small2':
+        model = VGG16_small2()
+    if model_ID == 'vgg_small_do_bn':
+        model = VGG16_small_do_bn()
     if model_ID == 'vgg_small2_do':
         model = VGG16_small2_do()
+
+optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
+
+if loss == 'bce':
+    print('    Using bce')
+    loss = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+elif loss == 'fl':
+    print('    Using focal loss with gamma = %s' % gamma)
+    loss = SigmoidFocalCrossEntropy(gamma = gamma, alpha=0.25)
+model.compile(optimizer = optimizer, loss = loss, metrics=METRICS)
+
+print(model.summary())
 
 print('All loaded. Starting dataset processing...')
 
@@ -233,35 +247,38 @@ if bright_aug == 1:
 
 print('    Number of anomalous training, validation patches: ', nbr_anom_train_patches, nbr_anom_val_patches)
 
-if bright_aug == True:
+if bright_aug == 1:
     aug_size = 2 * nbr_anom_train_patches
-if bright_aug == False:
+if bright_aug == 0:
     aug_size = nbr_anom_train_patches
 
-#rotations = np.random.randint(low = 1, high = 4, size = aug_size).astype('int32')
-#counter2 = tf.data.Dataset.from_tensor_slices(rotations)
-train_ds_to_rotate = train_ds_anomaly
+rotations = np.random.randint(low = 1, high = 4, size = aug_size).astype('int32')
+counter2 = tf.data.Dataset.from_tensor_slices(rotations)
+train_ds_to_rotate = tf.data.Dataset.zip((train_ds_anomaly, counter2))
+train_ds_rotated = train_ds_to_rotate.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-rotated_1 = train_ds_to_rotate.map(rotate_1, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-rotated_2 = train_ds_to_rotate.map(rotate_2, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-rotated_3 = train_ds_to_rotate.map(rotate_3, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-train_ds_rotated = train_ds_anomaly.concatenate(rotated_1).concatenate(rotated_2).concatenate(rotated_3)
+flip_seeds = np.random.randint(low = 1, high = 11, size = aug_size).astype('int32')
+counter3 = tf.data.Dataset.from_tensor_slices(flip_seeds)
+train_ds_to_flip = tf.data.Dataset.zip((train_ds_anomaly, counter3))
+train_ds_flipped = train_ds_to_flip.map(flip, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-#flip_seeds = np.random.randint(low = 1, high = 11, size = aug_size).astype('int32')
-#counter3 = tf.data.Dataset.from_tensor_slices(flip_seeds)
-train_ds_to_flip = train_ds_anomaly
-
-flipped_h = train_ds_to_flip.map(flip_h, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-flipped_v = train_ds_to_flip.map(flip_v, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-train_flipped = flipped_v.concatenate(flipped_h)
-
+#train_ds_to_rotate = train_ds_anomaly
+#rotated_1 = train_ds_to_rotate.map(rotate_1, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+#rotated_2 = train_ds_to_rotate.map(rotate_2, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+#rotated_3 = train_ds_to_rotate.map(rotate_3, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+#train_ds_rotated = train_ds_anomaly.concatenate(rotated_1).concatenate(rotated_2).concatenate(rotated_3)
+#train_ds_to_flip = train_ds_anomaly
+#flipped_h = train_ds_to_flip.map(flip_h, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+#flipped_v = train_ds_to_flip.map(flip_v, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+#train_flipped = flipped_v.concatenate(flipped_h)
 #train_ds_rotated = train_ds_anomaly.concatenate(train_ds_to_rotate.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE))
-train_ds_rotated_flipped = train_ds_rotated.concatenate(train_flipped)
+
+train_ds_rotated_flipped = train_ds_anomaly.concatenate(train_ds_rotated).concatenate(train_ds_flipped)
 
 augmented = train_ds_rotated_flipped.cache()
 
-#normal_train = len(list(normal_train_ds))
-anomalous_train = aug_size * 6
+anomalous_train = aug_size * 3
+
 normal_train = N_normal_train*PATCHES
 frac = int(normal_train/anomalous_train)
 print('    Number of normal, anomalous training samples: ', normal_train, anomalous_train)
@@ -284,22 +301,10 @@ time2 = time.time()
 pro_time = time2-time1
 print('Training and validation datasets created (processing time was {:.2f} s), starting training...'.format(pro_time))
 
-optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
-
-if loss == 'bce':
-    print('    Using bce')
-    loss = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-elif loss == 'fl':
-    print('    Using focal loss with gamma = %s' % gamma)
-    loss = SigmoidFocalCrossEntropy(gamma = gamma, alpha=0.75)
-model.compile(optimizer = optimizer, loss = loss, metrics=METRICS)
-
-print(model.summary())
-
 filepath = 'saved_CNNs/%s/cnn_%s_epoch_{epoch:02d}' % (savename, savename)
 steps_per_epoch = int(np.floor((normal_train+anomalous_train)/batch_size))
-save_every = steps_per_epoch*5
-print('    Model will be saved every %s training step, %s epoch ' % (save_every, save_every/steps_per_epoch))
+save_every = steps_per_epoch*2
+print('    Model will be saved every %s training step, %s epoch ' % (save_every, int(save_every/steps_per_epoch)))
 filepath_loss = 'saved_CNNs/%s/cnn_%s_epoch_{epoch:02d}' % (savename, savename)
 checkpoint_callback_best_loss = tf.keras.callbacks.ModelCheckpoint(filepath=filepath_loss, monitor='val_loss', mode='min', verbose=1, save_best_only=False, save_freq = save_every)
 
@@ -314,4 +319,5 @@ history = model.fit(train_ds_batch.prefetch(1), epochs = num_epochs, validation_
 print('Training finished, plotting...')
 
 plot_metrics(history, savename)
+
 

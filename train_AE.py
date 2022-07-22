@@ -7,7 +7,7 @@ from pathlib import Path
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from helpers.dataset_helpers import create_dataset, resize
-from AE.autoencoders2 import *
+from autoencoders2 import *
 from common import *
 
 parser = argparse.ArgumentParser()
@@ -76,8 +76,8 @@ def Callback_EarlyStopping(LossList, min_delta=0.1, patience=20):
     else:
         return False
 
-base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
-dir_ae = "/"
+base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db'
+dir_ae = "AE"
 X_train_list = np.load(os.path.join(base_dir, dir_ae, 'X_train_AE.npy'), allow_pickle=True)
 X_test_list = np.load(os.path.join(base_dir, dir_ae, 'X_test_AE.npy'), allow_pickle=True)
 
@@ -136,7 +136,7 @@ delta = 0.01
 saveModelEvery = 1
 
 model_name = 'AE_'+model_ID
-save_location = os.path.join(TrainDir_gpu, '../checkpoints', model_ID + '_' + str(batch_size) + '_' + str(savename))
+save_location = os.path.join(TrainDir_gpu, 'checkpoints', model_ID + '_' + str(batch_size) + '_' + str(savename))
 Path(save_location).mkdir(parents=True, exist_ok=True)
 costFigurePath = os.path.join(save_location, "cost.pdf")
 cost_file_path = costFigurePath.replace(".pdf", ".pkl")
@@ -172,8 +172,6 @@ for epoch in range(start_epoch, epochs + 1):
     stopEarly = Callback_EarlyStopping(test_costs, min_delta=0.1, patience=20)
     stopEarly = False
     if stopEarly:
-        print(f'\nEarly stopping. No improvement of more than {delta:.5%} in '
-              f'validation loss in the last {patience} epochs.')
         print("Terminating training ")
         break
 
