@@ -9,7 +9,7 @@ base_dir = TrainDir_pc
 images_dir_loc = imgDir_pc
 dir_det = '../db/DET/'
 dir_ae = '../db/AE/'
-f = os.path.join(base_dir, '../db/TRAIN_DATABASE_20220711')
+f = os.path.join(base_dir, '../db/DET/TRAIN_DATABASE_20220711')
 with pd.HDFStore( f,  mode='r') as store:
         final= store.select('db')
         print(f'Reading {DataBaseFileLocation_local+f}')
@@ -17,7 +17,7 @@ with pd.HDFStore( f,  mode='r') as store:
 X_train, Y_train= process_anomalous_df_to_numpy(final)
 print(len(X_train), X_train[0])
 
-f = os.path.join(base_dir, '../db/TEST_DATABASE_20220711')
+f = os.path.join(base_dir, '../db/DET/TEST_DATABASE_20220711')
 with pd.HDFStore( f,  mode='r') as store:
         test_db = store.select('db')
         print(f'Reading {DataBaseFileLocation_local+f}')

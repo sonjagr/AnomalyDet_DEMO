@@ -52,7 +52,7 @@ labels = []
 boxx1, boxx2, boxy1, boxy2 = [], [], [], []
 boxes = []
 print(len(x2), len(y2))
-myfile = open('C:/Users/sgroenro/PycharmProjects/anomaly-detection-2/db/bbs_for_YOLO.txt', 'w')
+myfile = open('/db/other/bbs_for_YOLO.txt', 'w')
 for k in range(0, len(x2)):
         boxlist = []
         filenames.append(anomalous_files[k])

@@ -33,8 +33,8 @@ dir_det = '../db/DET/'
 dir_ae = '../db/AE/'
 
 ## extract normal images for training
-X_train_list_ae = np.load(os.path.join(base_dir, dir_ae, 'X_train_NOT_AE.npy'), allow_pickle=True)
-X_test_list_ae = np.load(os.path.join(base_dir, dir_ae, 'X_test_NOT_AE.npy'), allow_pickle=True)
+X_train_list_ae = np.load(os.path.join(base_dir, dir_ae, ''), allow_pickle=True)
+X_test_list_ae = np.load(os.path.join(base_dir, dir_ae, ''), allow_pickle=True)
 print(len(X_train_list_ae), len(X_test_list_ae))
 
 
@@ -53,8 +53,8 @@ X_val_removed = [x for x in X_test_list_ae if x not in X_val_normal_list]
 X_train_normal_list = [images_dir_loc + s for s in X_train_removed]
 X_val_normal_list = [images_dir_loc + s for s in X_val_removed ]
 
-old_dirty = np.load(base_dir + dir_ae + 'X_test_forcnn_toann_2.npy')
-old_clean = np.load(base_dir + dir_ae + 'X_train_forcnn_clean_2.npy')
+old_dirty = np.load(base_dir + dir_ae + '')
+old_clean = np.load(base_dir + dir_ae + '')
 print(len(old_dirty))
 #old_dirty = [images_dir_loc + s for s in old_dirty]
 #old_clean = [images_dir_loc + s for s in old_clean]
@@ -84,5 +84,5 @@ for x in tqdm(X_train_normal_list, total=len(X_train_normal_list)):
 
     X_list_new_dirty = np.array(X_list_new_dirty)
     X_list_new_clean = np.array(X_list_new_clean)
-    save_file(base_dir + dir_ae + 'X_train_forcnn_clean_2.npy', X_list_new_clean,  True)
-    save_file(base_dir + dir_ae + 'X_train_forcnn_toann_2.npy', X_list_new_dirty, True)
+    #save_file(base_dir + dir_ae + 'X_train_forcnn_clean_2.npy', X_list_new_clean,  True)
+    #save_file(base_dir + dir_ae + 'X_train_forcnn_toann_2.npy', X_list_new_dirty, True)

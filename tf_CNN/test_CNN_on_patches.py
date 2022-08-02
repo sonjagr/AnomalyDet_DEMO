@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve
 import random, time
 import tensorflow as tf
+import cv2
 import pandas as pd
 from tqdm import tqdm
 import matplotlib.patches as patches
@@ -18,7 +19,7 @@ import sklearn
 tf.keras.backend.clear_session()
 
 ## USER SELECTS THESE
-gpu = '3'
+gpu = '2'
 th = 0.03
 plot_th = 1
 history_is = 0
@@ -168,9 +169,9 @@ def plot_histogram(labels, pred_flat, p, normalize, ylim):
             true_ano.append(j)
     print(len(true_nor), len(true_ano))
     plt.grid()
-    plt.ylim(0, ylim)
-    plt.hist(true_nor, bins = int(np.sqrt(len(true_nor))), color = 'green', density = normalize, alpha = 0.7, label = 'Normal')
-    plt.hist(true_ano, bins = int(np.sqrt(len(true_ano))), color = 'red', density = normalize, alpha = 0.7, label = 'Anomalous')
+    #plt.ylim(0, ylim)
+    plt.hist(true_nor, bins = int(np.sqrt(len(true_nor))), color = 'green', density = False, alpha = 0.7, label = 'Normal')
+    plt.hist(true_ano, bins = int(np.sqrt(len(true_ano))), color = 'red', density = False, alpha = 0.7, label = 'Anomalous')
     plt.legend()
     plt.show()
 
@@ -202,7 +203,7 @@ def evaluate_preds(label, prediction, title):
     cm = confusion_matrix(label, rounding_thresh(prediction, th))
 
     if 'whole' not in title:
-        plot_histogram(label, prediction ,th, True, 100)
+        plot_histogram(label, prediction ,th, True, 10)
     elif 'whole' in title:
         plot_histogram(label, prediction, th, False, 250)
 
@@ -312,7 +313,9 @@ def eval_loop(dataset, test = 1, N=500):
         if plot == 1 and test == 1:
             #print('Whole label : ', whole_label)
             img, ax = plt.subplots()
-            ax.imshow(whole_img.numpy().reshape(2720, 3840))
+            whole_img_to_plot = whole_img.numpy().reshape(2720, 3840)
+            whole_img_to_plot = cv2.cvtColor(whole_img_to_plot.astype('uint8'), cv2.COLOR_BAYER_RG2RGB)
+            ax.imshow(whole_img_to_plot)
             for t in lbl_ids:
                 x_t,y_t = box_index_to_coords(t)
                 plt.gca().add_patch(patches.Rectangle((x_t, y_t), BOXSIZE, BOXSIZE, linewidth=2, edgecolor='r', facecolor='none'))
@@ -350,17 +353,14 @@ whole_pred, whole_label, patch_pred, patch_label, false_positive_patches, false_
 false_positive_patches = np.array(false_positive_patches)
 false_negative_patches = np.array(false_negative_patches)
 #plot_false(false_positive_patches, 'False POSITIVE')
-plot_false(false_negative_patches, 'False NEGATIVE')
+#plot_false(false_negative_patches, 'False NEGATIVE')
 
-plot_false_wholes(false_negative_wholes, 'False NEGATIVE')
+#plot_false_wholes(false_negative_wholes, 'False NEGATIVE')
 
 patch_label = np.array(patch_label).flatten()
 patch_pred = np.array(patch_pred).flatten()
 whole_label = np.array(whole_label).flatten()
 whole_pred = np.array(whole_pred).flatten()
-
-#print('Average encode time:', np.mean(encode_times))
-#print('Average prediction time:', np.mean(prediction_times))
 
 evaluate_preds(patch_label, patch_pred, 'test patches')
 evaluate_preds(whole_label, whole_pred, 'test whole images')

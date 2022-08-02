@@ -84,10 +84,10 @@ if use_ae == 1:
     ae.load(os.path.join(base_dir, 'checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_277_to_277_epochs'))
 
 ## extract normal images for training
-X_list_norm = np.load(os.path.join(base_dir, 'db/NORMAL_TRAIN_20220711.npy'), allow_pickle=True)
+X_list_norm = np.load(os.path.join(base_dir, 'db/AE/NORMAL_TRAIN_20220711.npy'), allow_pickle=True)
 print('        Available normal train, val images', len(X_list_norm))
 
-f = os.path.join(base_dir, 'db/TRAIN_DATABASE_20220711')
+f = os.path.join(base_dir, 'db/DET/TRAIN_DATABASE_20220711')
 with pd.HDFStore( f,  mode='r') as store:
         train_val_db = store.select('db')
         print(f'Reading {f}')
@@ -188,9 +188,10 @@ def process_crop(image, label):
     return image, label
 
 @tf.function
-def process_crop_bright(image, label, delta):
+def process_crop_bright(image_label, delta):
+    image, label = image_label
     image, label = crop(image, label)
-    image, label = bright_encode(image, label, ae, delta)
+    image, label = bright(image, label, delta)
     return image, label
 
 def filter_anom(x):
@@ -226,6 +227,14 @@ if bright_aug == 1 and use_ae == 1:
     counter1 = tf.data.Dataset.from_tensor_slices(brightnesses)
     train_ds_to_bright = tf.data.Dataset.zip((train_ds_orig, counter1))
     train_ds_brightness = train_ds_to_bright.map(lambda x, z: process_crop_bright_encode(x, z), num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    train_ds_brightness = train_ds_brightness.flat_map(patch_images).unbatch()
+
+if bright_aug == 1 and use_ae == 0:
+    print('    Augmenting brightness of images')
+    brightnesses = np.random.uniform(low = 0.75, high = 1.25, size = np.array(Y_train_det_list).shape[0])
+    counter1 = tf.data.Dataset.from_tensor_slices(brightnesses)
+    train_ds_to_bright = tf.data.Dataset.zip((train_ds_orig, counter1))
+    train_ds_brightness = train_ds_to_bright.map(lambda x, z: process_crop_bright(x, z), num_parallel_calls=tf.data.experimental.AUTOTUNE)
     train_ds_brightness = train_ds_brightness.flat_map(patch_images).unbatch()
 
 ## apply patching

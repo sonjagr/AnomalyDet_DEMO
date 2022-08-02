@@ -8,7 +8,7 @@ import os.path
 import matplotlib.patches as patches
 from matplotlib import pyplot as plt
 
-DataBaseFile = 'extra_annotations_clean_2'
+DataBaseFile = 'extra_annotations_dummy_sensor'
 imgDir = imgDir_pc
 DataBaseFileLocation = DataBaseFileLocation_local
 base_dir = TrainDir_pc
@@ -32,14 +32,21 @@ if load_from_file_list:
     #    print(f'Reading {DataBaseFileLocation_local + f}')
     #train_df = train_val_db
     #X_train_det_list = train_df['Path'].to_numpy()
-    X_train_det_list = np.load(base_dir + dir_ae + 'X_train_forcnn_toann_2.npy')
-    X_test_det_list = np.load(base_dir + dir_ae + 'X_test_forcnn_toann_2.npy')
+    #X_train_det_list = np.load(base_dir + dir_ae + 'X_train_forcnn_toann_2.npy')
+    #X_test_det_list = np.load(base_dir + dir_ae + 'X_test_forcnn_toann_2.npy')
 
-    list_to_annotate =  X_train_det_list
+    #list_to_annotate =  X_train_det_list
+
+    import glob
+    list_to_annotate = []
+    for filename in glob.glob('F:/testing_dataset/fake_DUT3/' + '*.npy'):
+        print(filename)
+        list_to_annotate = np.append(list_to_annotate, filename)
 
     all_files_db = []
     empty_list = np.array([]).tolist()
     for i in list_to_annotate:
+        print(i)
         _campaign, _dut, _fn = i.split('/')[-3:]
         _s = i.split('step')[-1].replace('.npy', '')
         all_files_db.append((_campaign, _dut, _s, _fn, False) + ((empty_list),) * len(extra_cols))
@@ -132,7 +139,7 @@ for _c, _img_index in enumerate(tqdm(process_indexes)):
     fig, ax = plt.subplots(figsize=(16, 10))
     cid = fig.canvas.mpl_connect('button_press_event', onclick_bb)
     bsz = fig.canvas.mpl_connect('button_press_event', box_size)
-    im = np.load(filepath)
+    im = np.load(filepath, allow_pickle=True)
     im = cv2.cvtColor(im, cv2.COLOR_BAYER_RG2RGB)
     ax.imshow(im[0:PICTURESIZE_Y, 0:PICTURESIZE_X])
     ax.set_xticks(np.arange(80, PICTURESIZE_X, BOXSIZE_X), minor = True)
@@ -223,5 +230,5 @@ bad_files_processed['Date'] = pd.to_datetime('today').date()
 loaded_db = pd.concat([loaded_db, bad_files_processed], axis = 0)
 
 #7.: write out database
-DataBaseFile = 'extra_annotations_clean_2'
+DataBaseFile = 'extra_annotations_dummy_sensor'
 loaded_db.to_hdf(DataBaseFileLocation + DataBaseFile, key='db', mode='w')
