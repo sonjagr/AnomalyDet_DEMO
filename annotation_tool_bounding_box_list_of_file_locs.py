@@ -8,12 +8,12 @@ import os.path
 import matplotlib.patches as patches
 from matplotlib import pyplot as plt
 
-DataBaseFile = 'extra_annotations_dummy_sensor'
+DataBaseFile = 'xy_table_tests_Summer2021_2'
 imgDir = imgDir_pc
 DataBaseFileLocation = DataBaseFileLocation_local
 base_dir = TrainDir_pc
-dir_det = '../db/DET/'
-dir_ae = '../db/AE/'
+dir_det = 'db/DET/'
+dir_ae = 'db/AE/'
 extra_cols = ["bound_boxX", "bound_boxY", "bound_box_dimX", "bound_box_dimY", "orig_boxX", "orig_boxY"]
 load_from_file_list = True
 
@@ -39,7 +39,7 @@ if load_from_file_list:
 
     import glob
     list_to_annotate = []
-    for filename in glob.glob('F:/testing_dataset/fake_DUT3/' + '*.npy'):
+    for filename in glob.glob('F:/ScratchDetection/xy_table_tests_Summer2021/HPK_198ch_8inch_2010/' + '*.npy'):
         print(filename)
         list_to_annotate = np.append(list_to_annotate, filename)
 
@@ -230,5 +230,5 @@ bad_files_processed['Date'] = pd.to_datetime('today').date()
 loaded_db = pd.concat([loaded_db, bad_files_processed], axis = 0)
 
 #7.: write out database
-DataBaseFile = 'extra_annotations_dummy_sensor'
+DataBaseFile = 'xy_table_tests_Summer2021_2'
 loaded_db.to_hdf(DataBaseFileLocation + DataBaseFile, key='db', mode='w')
