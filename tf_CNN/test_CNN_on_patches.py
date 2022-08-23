@@ -4,7 +4,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from helpers.dataset_helpers import create_cnn_dataset, box_index_to_coords, process_anomalous_df_to_numpy
 from helpers.cnn_helpers import crop, encode
-from old_codes.autoencoders import *
+from autoencoders2 import *
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve
@@ -19,13 +19,14 @@ import sklearn
 tf.keras.backend.clear_session()
 
 ## USER SELECTS THESE
-gpu = '2'
-th = 0.03
+gpu = '3'
+th = 0.3
 plot_th = 1
 history_is = 0
-savename = 'clean_moredata_fl'
+#savename = 'clean_moredata_fl'
+savename = 'dummy_defects3'
 batch_size = 1
-epoch = '20'
+epoch = '18'
 
 ## USED FOR SETTING PATHS
 database_dir = DataBaseFileLocation_gpu
@@ -33,7 +34,6 @@ base_dir = TrainDir_gpu
 images_dir_loc = imgDir_gpu
 dir_ae = 'AE/'
 dir_det = 'DET/'
-
 print('Analysing model: ' + savename + ', epoch: ' +str(epoch))
 
 if gpu is not 0:
@@ -62,16 +62,18 @@ if history_is:
     history_df = pd.read_csv(training_history_file)
     plot_training(history_df, savename)
 
-model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, epoch)), compile=False)
+model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/%s/cnn_%s_2_epoch_%s' % (savename, savename, epoch)), compile=False)
 br_model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/br_br_1_new/br_cnn_br_1_new'), compile=False)
 print(model.summary())
 
 ae = AutoEncoder()
 print('    Loading autoencoder and data...')
-ae.load(os.path.join(base_dir, 'checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_277_to_277_epochs'))
+#ae.load(os.path.join(base_dir, 'checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_277_to_277_epochs')) #use with clean_moredata_fl
+
+ae.load(os.path.join(base_dir, 'checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_322_to_322_epochs'))
 
 ###training data
-f_train = os.path.join(base_dir, 'db/TRAIN_DATABASE_20220711')
+f_train = os.path.join(base_dir, 'db/DET/TRAIN_DATABASE_20220805')
 with pd.HDFStore( f_train,  mode='r') as store:
         train_val_db = store.select('db')
         print(f'Reading {f_train}')
@@ -81,7 +83,7 @@ X_val_det_list = [images_dir_loc + s for s in X_val_det_list]
 ##
 
 ### testing data
-f_test = os.path.join(base_dir, 'db/TEST_DATABASE_20220711')
+f_test = os.path.join(base_dir, 'db/DET/TEST_DATABASE_20220711')
 with pd.HDFStore(f_test,  mode='r') as store:
         test_db = store.select('db')
         print(f'Reading {f_test}')
@@ -91,7 +93,7 @@ Y_test_det_list = Y_test_det_list.tolist()
 print(X_test_det_list[1])
 N_det_test = len(Y_test_det_list)
 
-X_test_norm_list_loaded = np.load(database_dir + 'NORMAL_TEST_20220711.npy', allow_pickle=True)
+X_test_norm_list_loaded = np.load(database_dir + '/AE/NORMAL_TEST_20220711.npy', allow_pickle=True)
 X_test_norm_list_loaded = [images_dir_loc + s for s in X_test_norm_list_loaded]
 
 xtest = 5

@@ -18,7 +18,7 @@ bce = tf.keras.losses.BinaryCrossentropy()
 ae = AutoEncoder()
 print('Loading autoencoder and data...')
 #ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
-#ae.load('saved_class/model_AE_TQ3_500_to_500_epochs')
+#ae.load('saved_models/model_AE_TQ3_500_to_500_epochs')
 ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_TQ3_more_data/AE_TQ3_318_to_318_epochs')
 
 base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'

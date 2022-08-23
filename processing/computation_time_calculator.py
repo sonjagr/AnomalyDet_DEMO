@@ -23,8 +23,8 @@ if computer == 'gpu':
         '/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_CNNs/testing_brightness/cnn_testing_brightness_epoch_168')
     images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 if computer == 'local':
-    ae.load('saved_class/model_AE_TQ3_500_to_500_epochs')
-    model = tf.keras.models.load_model('saved_class/cnn_%s_epoch_%i' % (savename, cont_epoch))
+    ae.load('saved_models/model_AE_TQ3_500_to_500_epochs')
+    model = tf.keras.models.load_model('saved_models/cnn_%s_epoch_%i' % (savename, cont_epoch))
     images_dir_loc = '/media/gsonja/Samsung_T5/ScratchDetection/MeasurementCampaigns/'
     # images_dir_loc = 'F:/ScratchDetection/MeasurementCampaigns/'
 
