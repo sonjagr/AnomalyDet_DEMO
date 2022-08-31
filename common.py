@@ -37,7 +37,7 @@ for row in range(int(BOXSIZE_Y/2), PICTURESIZE_Y, int(BOXSIZE_X/2)):
         ANCHOR_GRID_OFFSET_X_Y.append([col, row])
 
 ## base directory where images are stored
-imgDir_pc = 'F:'
+imgDir_pc = 'F:/ScratchDetection/MeasurementCampaigns'
 imgDir_laptop = r'/media/gsonja/Samsung_T5/ScratchDetection/MeasurementCampaigns/'
 imgDir_gpu = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 

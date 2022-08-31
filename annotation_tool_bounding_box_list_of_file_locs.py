@@ -8,7 +8,7 @@ import os.path
 import matplotlib.patches as patches
 from matplotlib import pyplot as plt
 
-DataBaseFile = 'xy_table_tests_Summer2021_2'
+DataBaseFile = 'pre_series'
 imgDir = imgDir_pc
 DataBaseFileLocation = DataBaseFileLocation_local
 base_dir = TrainDir_pc
@@ -38,29 +38,31 @@ if load_from_file_list:
     #list_to_annotate =  X_train_det_list
 
     import glob
+    import re
     list_to_annotate = []
-    for filename in glob.glob('F:/ScratchDetection/xy_table_tests_Summer2021/HPK_198ch_8inch_2010/' + '*.npy'):
-        print(filename)
+    for filename in glob.glob('F:/ScratchDetection/MeasurementCampaigns/Preseries_June2022/300056/' + '*.npy'):
         list_to_annotate = np.append(list_to_annotate, filename)
 
     all_files_db = []
     empty_list = np.array([]).tolist()
     for i in list_to_annotate:
-        print(i)
+        i= i.replace('\\', '/')
+        #print(i)
         _campaign, _dut, _fn = i.split('/')[-3:]
+        #_campaign, _dut, _fn  = re.split(r'/', i)
         _s = i.split('step')[-1].replace('.npy', '')
         all_files_db.append((_campaign, _dut, _s, _fn, False) + ((empty_list),) * len(extra_cols))
 
     all_files_db = pd.DataFrame(all_files_db, columns=DEF_COLS + extra_cols)
     all_files_db = all_files_db.set_index(keys=["Campaign", "DUT", "Step"])
-
+    #print(all_files_db)
     if loaded_db is None:
         loaded_db = all_files_db[all_files_db.Normal == True]
         print('No loaded database')
     else:
         loaded_db = pd.concat([loaded_db, all_files_db[all_files_db.Normal == True]], axis=0)
         loaded_db = loaded_db[~loaded_db.index.duplicated(keep="first")]
-
+    print(loaded_db)
     bad_files_db = all_files_db[all_files_db.Normal == False]
     bad_files_to_process = bad_files_db[~bad_files_db.index.isin(loaded_db.index)]
     bad_files_to_process = bad_files_to_process.assign(processed=False)
@@ -230,5 +232,5 @@ bad_files_processed['Date'] = pd.to_datetime('today').date()
 loaded_db = pd.concat([loaded_db, bad_files_processed], axis = 0)
 
 #7.: write out database
-DataBaseFile = 'xy_table_tests_Summer2021_2'
+DataBaseFile = 'pre_series'
 loaded_db.to_hdf(DataBaseFileLocation + DataBaseFile, key='db', mode='w')

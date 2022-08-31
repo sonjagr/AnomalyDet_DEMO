@@ -200,3 +200,66 @@ class AutoEncoder(tf.keras.Model):
         self.decoder = tf.keras.models.load_model(decoder_path, compile=True)
         print("Loaded network from", fpath)
         return True
+
+    def initialize_network_TQ3_3_patches(self):
+        self.encoder = tf.keras.Sequential(
+            [
+                tf.keras.layers.InputLayer(input_shape=(
+                    160, 160, 1)),
+                tf.keras.layers.experimental.preprocessing.Rescaling(1. / EIGHTBITMAX),
+                tf.keras.layers.Conv2D(
+                    filters=128, kernel_size=(5, 5), strides=(5, 5), activation='elu', padding="valid", use_bias=True),
+                tf.keras.layers.Conv2D(
+                    filters=64, kernel_size=(4, 4), strides=(4, 4), activation='elu', padding="valid", use_bias=True),
+                tf.keras.layers.Conv2D(
+                    filters=32, kernel_size=(2, 2), strides=(2, 2), activation='elu', padding="valid", use_bias=True),
+                tf.keras.layers.Conv2D(
+                    filters=16, kernel_size=(4, 4), strides=(4, 4), activation='elu', padding="valid", use_bias=True),
+                tf.keras.layers.Conv2D(
+                    filters=16, kernel_size=(1, 1), strides=(1, 1), activation='elu', padding="valid", use_bias=True),
+            ]
+        )
+        print(self.encoder.summary())
+
+        self.decoder = tf.keras.Sequential(
+            [
+                tf.keras.layers.InputLayer(input_shape=self.encoder.output.shape[1:]),
+                tf.keras.layers.Conv2D(
+                    filters=16, kernel_size=(1, 1), strides=(1, 1), activation='elu', padding="valid", use_bias=True),
+                tf.keras.layers.Conv2DTranspose(
+                    filters=32, kernel_size=(4, 4), strides=(4, 4), activation='elu', padding="valid", use_bias=True),
+                tf.keras.layers.Conv2DTranspose(
+                    filters=64, kernel_size=(2, 2), strides=(2, 2), activation='elu', padding="valid", use_bias=True),
+                tf.keras.layers.Conv2DTranspose(
+                    filters=128, kernel_size=(4, 4), strides=(4, 4), activation='elu', padding="valid", use_bias=True),
+                tf.keras.layers.Conv2DTranspose(
+                    filters=1, kernel_size=(5, 5), strides=(5, 5), activation='relu', padding="valid", use_bias=True),
+                tf.keras.layers.experimental.preprocessing.Rescaling(EIGHTBITMAX),
+            ]
+        )
+        print(self.decoder.summary())
+
+    def encode(self, im):
+        return self.encoder(im)
+
+    def decode(self, z):
+        return self.decoder(z)
+
+    def save(self, path):
+        encoder_path = path + "_encoder"
+        self.encoder.save(encoder_path)
+
+        decoder_path = path + "_decoder"
+        self.decoder.save(decoder_path)
+
+    def load(self, fpath):
+        encoder_path = fpath + "_encoder"
+        if os.path.exists(encoder_path):
+            self.encoder = tf.keras.models.load_model(encoder_path, compile=True)
+        else:
+            return False
+
+        decoder_path = fpath + "_decoder"
+        self.decoder = tf.keras.models.load_model(decoder_path, compile=True)
+        print("Loaded network from", fpath)
+        return True

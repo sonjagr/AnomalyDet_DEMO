@@ -2,7 +2,7 @@ import numpy as np
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 from tqdm import tqdm
-from old_codes.autoencoders import *
+from autoencoders2 import *
 from sklearn.metrics import confusion_matrix
 from helpers.dataset_helpers import create_cnn_dataset
 import random
@@ -11,18 +11,15 @@ random.seed(42)
 
 gpu = "3"
 
-#os.environ["CUDA_VISIBLE_DEVICES"] = gpu
+os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
 bce = tf.keras.losses.BinaryCrossentropy()
 
 ae = AutoEncoder()
 print('Loading autoencoder and data...')
-#ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
-#ae.load('saved_class/model_AE_TQ3_500_to_500_epochs')
-ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_TQ3_more_data/AE_TQ3_318_to_318_epochs')
+ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_321_to_321_epochs')
 
 base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
-#base_dir = 'db/'
 dir_det = 'DET/'
 images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 #images_dir_loc = 'F:/ScratchDetection/MeasurementCampaigns/'
@@ -33,6 +30,7 @@ X_train_det_list = [images_dir_loc + s for s in X_train_det_list]
 X_test = [images_dir_loc + s for s in X_test]
 Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET.npy', allow_pickle=True).tolist()
 Y_test = np.load(base_dir + dir_det + 'Y_test_DET.npy', allow_pickle=True).tolist()
+
 
 N_det_val = int(len(X_test)/2)
 X_val_det_list = X_test[:N_det_val]
@@ -45,6 +43,7 @@ N_det_train = len(X_train_det_list)
 print('Loaded number of train, val samples: ', N_det_train, N_det_val)
 print('All loaded. Starting processing...')
 
+print(X_train_det_list)
 train_ds = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=True)
 val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list, _shuffle=True)
 test_ds = create_cnn_dataset(X_test_det_list, Y_test_det_list, _shuffle=True)
@@ -95,51 +94,62 @@ train_ds = train_ds.map(format)
 val_ds = val_ds.map(format)
 test_ds = test_ds.map(format)
 
-train_norm = train_ds.filter(lambda x,y: y ==0.).take(3000)
+train_norm = train_ds.filter(lambda x,y: y ==0.)#.take(1603)
 train_anom = train_ds.filter(lambda x,y: y ==1.)
-
+print(train_norm)
+print(train_anom)
 train_norm_means = []
 for x, y in train_norm:
+    print(x)
     train_norm_means.append(x.numpy())
 
 train_anom_means = []
 for x, y in train_anom:
     train_anom_means.append(x.numpy())
 
+print('Anom patches', len(train_anom_means))
+print('norm patches', len(train_norm_means))
+
 import sklearn
-train_means = train_norm_means.append(train_anom_means)
-scaler = sklearn.preprocessing.MinMaxScaler()
-train_means = scaler.fit_transform(np.array(train_means).reshape(-1, 1))
+#train_means = train_norm_means.append(train_anom_means)
+#scaler = sklearn.preprocessing.MinMaxScaler()
+#train_means = scaler.fit_transform(np.array(train_means).reshape(-1, 1))
 
-train_norm_means = train_means[:3000]
-train_anom_means =train_means[-len(train_anom_means):]
+#train_norm_means = train_means[:3000]
+#train_anom_means =train_means[-len(train_anom_means):]
 
-th = 0.54
+th = 27.2
 plt.hist(train_anom_means,  bins = int(np.sqrt(len(train_anom_means))), density = True, alpha = 0.6, color = 'lightgray', label='Anomalous', zorder = 3)
-plt.hist(train_norm_means, bins = int(np.sqrt(len(train_norm_means))),  density = True, alpha = 0.6,color = 'gray', label = 'Non-anomalous',zorder = 3)
+plt.hist(train_norm_means, bins = int(np.sqrt(len(train_norm_means))),  density = True, alpha = 0.6,color = 'gray', label = 'Normal',zorder = 3)
 plt.grid(zorder = 1)
-plt.xlabel('Mean pixel-wise reconstruction error', fontsize = 14)
-plt.plot([th, th,th,th], [0.0,0.05,0.2,0.6], linestyle = '--', color = 'black', label='Threshold = 27.1')
+plt.xlabel('Mean pixel-wise reconstruction error [arb. unit]', fontsize = 14)
+plt.plot([th, th,th,th], [0.0,0.05,0.2,0.6], linestyle = '--', color = 'black', label='Threshold = 27.2', zorder = 5)
 #plt.plot([th, th,th,th], [0.0,4,6,8.6], linestyle = '--', color = 'black', label='Threshold = 0.54', zorder = 5)
-#plt.ylim(0,8.5)
+plt.ylim(0,0.6)
+plt.xlim(15, 45)
 plt.tick_params(axis='both', which='major', labelsize=14)
-plt.legend(loc = 'upper left', fontsize = 14)
+plt.legend(loc = 'upper right', fontsize = 14)
 plt.tight_layout()
 plt.show()
 
 
-threshold = 27.1
+threshold = 27.2
 true = []
 pred = []
+pred2 = []
 true_pos = 0
 pred_pos = 0
 for x, y in test_ds:
     mean = x
     true.append(y.numpy())
+    if y == 1:
+        true_pos = true_pos + 1
     if mean < threshold:
         pred.append(0)
+        pred2.append(mean)
     if mean > threshold:
         pred.append(1)
+        pred2.append(mean)
         pred_pos = pred_pos + 1
 print(true_pos)
 print(pred_pos)
@@ -170,7 +180,7 @@ def plot_roc_curve2(fpr1, tpr1, auc1, ):
 from sklearn.metrics import roc_curve
 from sklearn import metrics
 
-fpr1 , tpr1 , thresholds = roc_curve(true, pred)
+fpr1 , tpr1 , thresholds = roc_curve(true, pred2)
 
 auc1 = metrics.auc(fpr1, tpr1)
 plt.figure(2)

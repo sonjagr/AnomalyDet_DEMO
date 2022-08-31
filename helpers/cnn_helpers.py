@@ -77,6 +77,12 @@ def crop(img, lbl):
     return img, lbl
 
 @tf.function
+def crop_AE(img):
+    img = tf.reshape(img, [-1, PICTURESIZE_Y+16, PICTURESIZE_X, 1])
+    img = tf.keras.layers.Cropping2D(cropping=((0, 16), (0, 0)))(img)
+    return img
+
+@tf.function
 def flip(image_label, seed):
     image, label = image_label
     INPUT_DIM = tf.shape(image)[-1]
@@ -108,6 +114,14 @@ def patch_images(img, lbl):
     re = tf.reshape(split_img, [PATCHES, BOXSIZE *BOXSIZE, INPUT_DIM])
     lbl = tf.reshape(lbl, [PATCHES])
     patch_ds = tf.data.Dataset.from_tensors((re, lbl))
+    return patch_ds
+
+from helpers.dataset_helpers import create_dataset
+def patch_images_AE(img):
+    INPUT_DIM = tf.shape(img)[-1]
+    split_img = tf.image.extract_patches(images=img, sizes=[1, BOXSIZE, BOXSIZE, 1], strides=[1, BOXSIZE, BOXSIZE, 1], rates=[1, 1, 1, 1], padding='VALID')
+    re = tf.reshape(split_img, [PATCHES, BOXSIZE*BOXSIZE, INPUT_DIM])
+    patch_ds = tf.data.Dataset.from_tensors(re)
     return patch_ds
 
 ## calculate dataset length
@@ -274,3 +288,9 @@ def format_data(image, label):
     image = tf.reshape(image, [BOXSIZE, BOXSIZE, INPUT_DIM])
     label = tf.cast(label, tf.float32)
     return image, label
+
+@tf.function
+def format_data_AE(image):
+    INPUT_DIM = tf.shape(image)[-1]
+    image = tf.reshape(image, [BOXSIZE, BOXSIZE, INPUT_DIM])
+    return image
