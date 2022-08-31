@@ -119,7 +119,7 @@ test_ds_batch = test_ds_final.batch(batch_size=batch_size, drop_remainder = Fals
 
 optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
-from backround_CNNs import *
+from background_CNNs import *
 if load == False:
     if model_ID == 'br_1':
         model = br_1

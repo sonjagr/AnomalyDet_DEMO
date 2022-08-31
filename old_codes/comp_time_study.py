@@ -9,7 +9,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 ae = AutoEncoder()
 print('Loading autoencoder...')
-#ae.load('saved_class/model_AE_TQ3_500_to_500_epochs')
+#ae.load('saved_models/model_AE_TQ3_500_to_500_epochs')
 ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_1_cont/model_AE_TQ3_500_to_500_epochs')
 
 @tf.function
@@ -44,8 +44,8 @@ def split(img):
 
 savename = 'works2'
 cont_epoch = 350
-model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_class/%s/cnn_%s_epoch_%i' % (savename, savename,cont_epoch))
-#model = tf.keras.models.load_model('saved_class/cnn_%s_epoch_%i' % (savename,cont_epoch))
+model = tf.keras.models.load_model('/afs/cern.ch/user/s/sgroenro/anomaly_detection/saved_models/%s/cnn_%s_epoch_%i' % (savename, savename,cont_epoch))
+#model = tf.keras.models.load_model('saved_models/cnn_%s_epoch_%i' % (savename,cont_epoch))
 
 
 base_dir = '../db/'

@@ -1,7 +1,8 @@
 import numpy as np
 from helpers.dataset_helpers import create_cnn_dataset, process_anomalous_df_to_numpy
-from helpers.cnn_helpers import rotate,rotate_1,rotate_2,rotate_3, bright, format_data, flip_h, flip_v, patch_images, flip, plot_metrics, plot_examples, crop, bright_encode, encode, tf_bayer2rgb
-from old_codes.autoencoders import *
+from helpers.cnn_helpers import rotate,rotate_1, rotate_2, rotate_3, bright, format_data, flip_h, flip_v, patch_images, flip, plot_metrics, plot_examples, crop, bright_encode, encode, tf_bayer2rgb
+from autoencoders2 import *
+from common import *
 import random, time, argparse, os
 import tensorflow as tf
 import pandas as pd
@@ -61,7 +62,8 @@ def write_file():
     f.write("  Lr: %s" % lr)
     f.write("  Loss: %s" % loss)
     f.write("  AE: %s" % use_ae)
-    f.write("  Gamma: %s" % gamma)
+    f.write(
+        "  Gamma: %s" % gamma)
     f.close()
 
 if gpu != 0:
@@ -81,13 +83,13 @@ dir_ae = 'db/AE/'
 if use_ae == 1:
     ae = AutoEncoder()
     print('Loading autoencoder and data...')
-    ae.load(os.path.join(base_dir, 'checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_277_to_277_epochs'))
+    ae.load(os.path.join(base_dir, 'checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_322_to_322_epochs'))
 
 ## extract normal images for training
 X_list_norm = np.load(os.path.join(base_dir, 'db/AE/NORMAL_TRAIN_20220711.npy'), allow_pickle=True)
 print('        Available normal train, val images', len(X_list_norm))
 
-f = os.path.join(base_dir, 'db/DET/TRAIN_DATABASE_20220711')
+f = os.path.join(base_dir, 'db/DET/TRAIN_DATABASE_20220805')
 with pd.HDFStore( f,  mode='r') as store:
         train_val_db = store.select('db')
         print(f'Reading {f}')
@@ -103,7 +105,7 @@ N_det_train = len(X_train_det_list)
 
 np.random.seed(42)
 
-times_normal = 6
+times_normal = 4
 needed_nbr_of_normals = (N_det_train + N_det_val)*times_normal
 
 X_list_norm = np.random.choice(X_list_norm, needed_nbr_of_normals, replace=False)
@@ -140,7 +142,7 @@ METRICS = [
 
 if load == 1:
     print('    Loading previously trained model...')
-    model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, cont_epoch)))
+    model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/%s/cnn_%s_2_epoch_%s' % (savename, savename, cont_epoch)))
 if load == 0:
     print('    Not loading an old model')
     from new_CNNs import *
@@ -162,7 +164,7 @@ if loss == 'bce':
     loss = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 elif loss == 'fl':
     print('    Using focal loss with gamma = %s' % gamma)
-    loss = SigmoidFocalCrossEntropy(gamma = gamma, alpha=0.25)
+    loss = SigmoidFocalCrossEntropy(gamma = gamma)
 model.compile(optimizer = optimizer, loss = loss, metrics=METRICS)
 
 print(model.summary())
@@ -245,7 +247,7 @@ normal_val_ds = normal_val_ds.flat_map(patch_images).unbatch()
 
 train_ds_anomaly = train_ds.filter(lambda x, y:  filter_anom(y))
 val_ds_anomaly = val_ds.filter(lambda x, y: filter_anom(y))
-plot_examples(train_ds_anomaly.skip(20).take(5))
+plot_examples(train_ds_anomaly.skip(25).take(5))
 
 nbr_anom_train_patches = len(list(train_ds_anomaly))
 nbr_anom_val_patches = len(list(val_ds_anomaly))
@@ -304,21 +306,20 @@ train_ds_final = train_ds_final.shuffle(buffer_size=normal_train + anomalous_tra
 train_ds_batch = train_ds_final.batch(batch_size=batch_size, drop_remainder = True)
 val_ds_batch = val_ds_final.batch(batch_size=batch_size, drop_remainder = False)
 
-plot_examples(normal_train_ds.skip(10).take(5))
+plot_examples(normal_train_ds.skip(15).take(5))
 
 time2 = time.time()
 pro_time = time2-time1
 print('Training and validation datasets created (processing time was {:.2f} s), starting training...'.format(pro_time))
 
-filepath = 'saved_CNNs/%s/cnn_%s_epoch_{epoch:02d}' % (savename, savename)
 steps_per_epoch = int(np.floor((normal_train+anomalous_train)/batch_size))
 save_every = steps_per_epoch*2
 print('    Model will be saved every %s training step, %s epoch ' % (save_every, int(save_every/steps_per_epoch)))
-filepath_loss = 'saved_CNNs/%s/cnn_%s_epoch_{epoch:02d}' % (savename, savename)
+filepath_loss = 'saved_CNNs/%s/cnn_%s_2_epoch_{epoch:02d}' % (savename, savename)
 checkpoint_callback_best_loss = tf.keras.callbacks.ModelCheckpoint(filepath=filepath_loss, monitor='val_loss', mode='min', verbose=1, save_best_only=False, save_freq = save_every)
 
 ##save training history to file
-filename = 'saved_CNNs/%s/history_log.csv' % savename
+filename = 'saved_CNNs/%s/history_log_2.csv' % savename
 history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=True)
 
 write_file()
