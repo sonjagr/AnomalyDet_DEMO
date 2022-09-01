@@ -1,11 +1,13 @@
+
 import numpy as np
 from helpers.dataset_helpers import create_cnn_dataset, process_anomalous_df_to_numpy
-from helpers.cnn_helpers import rotate,rotate_1, rotate_2, rotate_3, bright, format_data, flip_h, flip_v, patch_images, flip, plot_metrics, plot_examples, crop, bright_encode, encode, tf_bayer2rgb
+from helpers.cnn_helpers import rotate, bright, format_data, patch_images, flip, plot_metrics, plot_examples, crop, bright_encode, encode
 from autoencoders2 import *
 from common import *
 import random, time, argparse, os
 import tensorflow as tf
 import pandas as pd
+import pickle5 as pickle
 from sklearn.model_selection import train_test_split
 from tensorflow_addons.losses import SigmoidFocalCrossEntropy
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -37,6 +39,8 @@ parser.add_argument("--gamma", type=float,
                     help="gammma for fl", default=2, required=False)
 parser.add_argument("--bright_aug", type=int,
                     help="augment brightness or not", default=1, required=False)
+
+##args=['--model_ID', 'vgg_small2_do', '--batch_size', '256', '--epochs', '200', '--lr', '1e-4', '--loss', 'fl', '--savename', 'pre_series', '--gamma', '2', '--gpu', '1,2']
 
 args = parser.parse_args()
 
@@ -89,13 +93,16 @@ if use_ae == 1:
 X_list_norm = np.load(os.path.join(base_dir, 'db/AE/NORMAL_TRAIN_20220711.npy'), allow_pickle=True)
 print('        Available normal train, val images', len(X_list_norm))
 
-f = os.path.join(base_dir, 'db/DET/TRAIN_DATABASE_20220805')
+f = os.path.join(base_dir, 'db/TRAIN_DATABASE')
 with pd.HDFStore( f,  mode='r') as store:
-        train_val_db = store.select('db')
+        train_db = store.select('db')
         print(f'Reading {f}')
-X_train_val_list, Y_train_val_list = process_anomalous_df_to_numpy(train_val_db)
-
-X_train_det_list, X_val_det_list, Y_train_det_list, Y_val_det_list = train_test_split(X_train_val_list, Y_train_val_list, test_size = 70, random_state = 42)
+X_train_det_list, Y_train_det_list = process_anomalous_df_to_numpy(train_db)
+f = os.path.join(base_dir, 'db/VAL_DATABASE')
+with pd.HDFStore( f,  mode='r') as store:
+        val_db = store.select('db')
+        print(f'Reading {f}')
+X_val_det_list, Y_val_det_list = process_anomalous_df_to_numpy(val_db)
 
 X_train_det_list = [images_dir_loc + s for s in X_train_det_list]
 X_val_det_list = [images_dir_loc + s for s in X_val_det_list]
@@ -105,7 +112,7 @@ N_det_train = len(X_train_det_list)
 
 np.random.seed(42)
 
-times_normal = 4
+times_normal = 3
 needed_nbr_of_normals = (N_det_train + N_det_val)*times_normal
 
 X_list_norm = np.random.choice(X_list_norm, needed_nbr_of_normals, replace=False)
@@ -142,7 +149,7 @@ METRICS = [
 
 if load == 1:
     print('    Loading previously trained model...')
-    model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/%s/cnn_%s_2_epoch_%s' % (savename, savename, cont_epoch)))
+    model = tf.keras.models.load_model(os.path.join(base_dir, 'saved_CNNs/%s/cnn_%s_epoch_%s' % (savename, savename, cont_epoch)))
 if load == 0:
     print('    Not loading an old model')
     from new_CNNs import *
@@ -268,26 +275,14 @@ counter2 = tf.data.Dataset.from_tensor_slices(rotations)
 train_ds_to_rotate = tf.data.Dataset.zip((train_ds_anomaly, counter2))
 train_ds_rotated = train_ds_to_rotate.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-flip_seeds = np.random.randint(low = 1, high = 11, size = aug_size).astype('int32')
+flip_seeds = np.random.randint(low = 1, high = 11, size =  aug_size).astype('int32')
 counter3 = tf.data.Dataset.from_tensor_slices(flip_seeds)
 train_ds_to_flip = tf.data.Dataset.zip((train_ds_anomaly, counter3))
 train_ds_flipped = train_ds_to_flip.map(flip, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-#train_ds_to_rotate = train_ds_anomaly
-#rotated_1 = train_ds_to_rotate.map(rotate_1, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-#rotated_2 = train_ds_to_rotate.map(rotate_2, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-#rotated_3 = train_ds_to_rotate.map(rotate_3, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-#train_ds_rotated = train_ds_anomaly.concatenate(rotated_1).concatenate(rotated_2).concatenate(rotated_3)
-#train_ds_to_flip = train_ds_anomaly
-#flipped_h = train_ds_to_flip.map(flip_h, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-#flipped_v = train_ds_to_flip.map(flip_v, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-#train_flipped = flipped_v.concatenate(flipped_h)
-#train_ds_rotated = train_ds_anomaly.concatenate(train_ds_to_rotate.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE))
-
 train_ds_rotated_flipped = train_ds_anomaly.concatenate(train_ds_rotated).concatenate(train_ds_flipped)
 
 augmented = train_ds_rotated_flipped.cache()
-
 anomalous_train = aug_size * 3
 
 normal_train = N_normal_train*PATCHES
@@ -315,11 +310,11 @@ print('Training and validation datasets created (processing time was {:.2f} s), 
 steps_per_epoch = int(np.floor((normal_train+anomalous_train)/batch_size))
 save_every = steps_per_epoch*2
 print('    Model will be saved every %s training step, %s epoch ' % (save_every, int(save_every/steps_per_epoch)))
-filepath_loss = 'saved_CNNs/%s/cnn_%s_2_epoch_{epoch:02d}' % (savename, savename)
+filepath_loss = 'saved_CNNs/%s/cnn_%s_epoch_{epoch:02d}' % (savename, savename)
 checkpoint_callback_best_loss = tf.keras.callbacks.ModelCheckpoint(filepath=filepath_loss, monitor='val_loss', mode='min', verbose=1, save_best_only=False, save_freq = save_every)
 
 ##save training history to file
-filename = 'saved_CNNs/%s/history_log_2.csv' % savename
+filename = 'saved_CNNs/%s/history_log.csv' % savename
 history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=True)
 
 write_file()

@@ -1,16 +1,16 @@
 import pickle
 import pandas as pd
-import sklearn
 from sklearn.model_selection import train_test_split
 import os
 
-TRAIN_DIR_LOC = r'/db'
+TRAIN_DIR_LOC = '/home/gsonja/PycharmProjects/anomaly-detection-2/db'
 
 def combine_datasets(new_db, old_db, name):
     old_db = old_db[['FileName', 'Date', 'orig_boxX', 'orig_boxY']]
     combined_db = pd.concat([old_db, new_db])
     new_date = combined_db["Date"].max()
-    #combined_db.to_hdf(r'C:\Users\sgroenro\PycharmProjects\anomaly-detection-2\db\%_DATABASE' % name, key='db', mode='w')
+    combined_db = combined_db[~combined_db.index.duplicated(keep='last')]
+    combined_db.to_hdf(r'/home/gsonja/PycharmProjects/anomaly-detection-2/db/%s_DATABASE' % name, key='db', mode='w')
     print('New data has been added to %s_DATABASE, newest data was collected on %s' % (name, str(new_date)))
     return combined_db
 
@@ -20,7 +20,7 @@ def open_db(name):
         db = store.select('db')
     return db
 
-new_f = 'C:/Users/sgroenro/PycharmProjects/anomaly-detection-2/db/pre_series'
+new_f = '/home/gsonja/PycharmProjects/anomaly-detection-2/db/pre_series'
 with pd.HDFStore(new_f, mode='r') as store:
     new_db = store.select('db')
 new_db = new_db.reset_index()
@@ -35,6 +35,7 @@ old_train_db = open_db("TRAIN_DATABASE")
 old_val_db = open_db("VAL_DATABASE")
 old_test_db = open_db("TEST_DATABASE")
 
+pickle.HIGHEST_PROTOCOL = 4
 combine_datasets(new_train_db, old_train_db, "TRAIN")
 combine_datasets(new_val_db, old_val_db, "VAL")
 combine_datasets(new_test_db, old_test_db, "TEST")

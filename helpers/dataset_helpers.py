@@ -9,6 +9,7 @@ import cv2
 def process_anomalous_df_to_numpy(db):
     db = db[db['orig_boxY'].map(len) > 0]
     db = db.reset_index()[['Campaign', 'DUT', 'FileName', 'orig_boxY', 'orig_boxX']]
+    db = db.replace('Fake_campaign1', 'fake_campaign1')
     db = db.drop(db.loc[(db.Campaign == 'September2021_PM8') & (db.DUT == '8inch_198ch_N3311_7')].index)
     db['Path'] = db.Campaign + '/' + db.DUT + '/' + db.FileName
     db = db.drop(['Campaign', 'DUT', 'FileName'], axis =1)
