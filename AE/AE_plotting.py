@@ -139,6 +139,7 @@ def plot_aed(path_to_ae, plotting_dataset, save, saveloc):
     ae.load(path_to_ae)
     p=0
     for x_plot, y_plot in plotting_dataset:
+        print(x_plot)
         img = x_plot
         y_plot = y_plot.numpy().reshape(17 * 24)
         img = img[0].numpy().reshape(1, 2736, 3840, 1)[:, :2720, :, :]
@@ -170,7 +171,7 @@ Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET.npy', allow_pickle=
 def_dataset = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=False)
 
 plotting_dataset = def_dataset.shuffle(100, seed = 1).take(5)
-#plot_aed(path_to_ae, plotting_dataset, True, saveloc)
+plot_aed(path_to_ae, plotting_dataset, True, saveloc)
 
 boxX = [(3000,3600),(500,1100),(1000,1500)]
 boxY = [(0,300),(0,400),(0,400)]

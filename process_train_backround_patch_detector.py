@@ -57,10 +57,10 @@ f.close()
 
 random.seed(42)
 from common import *
-base_dir = DataBaseFileLocation_gpu
+base_dir = r"C:\Users\sgroenro\PycharmProjects\anomaly-detection-2\db"
 dir_det = 'DET/'
 dir_ae = 'AE/'
-images_dir_loc = imgDir_gpu
+images_dir_loc = imgDir_pc
 
 ## extract normal images for training
 X_train = np.load(os.path.join(base_dir, dir_det, 'X_train_DET_backround_20220711.npy'), allow_pickle=True)

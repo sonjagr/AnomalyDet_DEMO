@@ -263,3 +263,6 @@ class AutoEncoder(tf.keras.Model):
         self.decoder = tf.keras.models.load_model(decoder_path, compile=True)
         print("Loaded network from", fpath)
         return True
+
+ae = AutoEncoder()
+ae.initialize_network_TQ3_2()
