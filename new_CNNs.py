@@ -1,67 +1,6 @@
 import tensorflow as tf
 import os
 
-'''
-model_whole_final2 = tf.keras.Sequential([
-    tf.keras.layers.InputLayer(input_shape=(160, 160, 1)),
-    tf.keras.layers.experimental.preprocessing.Rescaling(1. / 255.),
-
-    tf.keras.layers.Conv2D(filters=16, kernel_size=(2,2), strides=(2,2), padding="valid", activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.Dropout(0.4),
-
-    tf.keras.layers.Conv2D(filters=32, kernel_size=(2, 2), strides=(2, 2), padding="valid", activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.Dropout(0.3),
-
-    tf.keras.layers.Conv2D(filters=64, kernel_size=(2, 2), strides=(2, 2),  padding="valid", activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.Dropout(0.2),
-
-    tf.keras.layers.Conv2D(filters=64, kernel_size=(2, 2), strides=(2, 2), padding="valid", activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.Dropout(0.2),
-
-    tf.keras.layers.Conv2D(filters=128, kernel_size=(2, 2), strides=(2, 2), padding="valid", activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.Dropout(0.2),
-
-    tf.keras.layers.Conv2D(filters=256, kernel_size=(5, 5), strides=(5, 5), padding="valid", activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.Dropout(0.2),
-
-    tf.keras.layers.Flatten(),
-    tf.keras.layers.Dense(1, activation = 'sigmoid'),
-])
-
-model_whole_final = tf.keras.Sequential([
-    tf.keras.layers.InputLayer(input_shape=(160, 160, 1)),
-    tf.keras.layers.experimental.preprocessing.Rescaling(1. / 255.),
-
-    tf.keras.layers.Conv2D(filters=16, kernel_size=(2,2), strides=(2,2), padding="valid", activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.Dropout(0.4),
-
-    tf.keras.layers.Conv2D(filters=32, kernel_size=(2, 2), strides=(2, 2), padding="valid", activation='relu',kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.Dropout(0.3),
-
-    tf.keras.layers.Conv2D(filters=64, kernel_size=(4, 4), strides=(4, 4),  padding="valid", activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.Dropout(0.2),
-
-    tf.keras.layers.Conv2D(filters=128, kernel_size=(2, 2), strides=(2, 2), padding="valid", activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.Dropout(0.2),
-
-    tf.keras.layers.Conv2D(filters=256, kernel_size=(5, 5), strides=(5, 5), padding="valid", activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.01)),
-    tf.keras.layers.BatchNormalization(),
-    tf.keras.layers.Dropout(0.2),
-
-    tf.keras.layers.Flatten(),
-    tf.keras.layers.Dense(1, activation = 'sigmoid'),
-])
-'''
 def model_whole_final_overlap():
     model = tf.keras.Sequential()
     model.add(tf.keras.layers.InputLayer(input_shape=(160, 160, 1)))
@@ -413,7 +352,7 @@ def AlexNet():
     AlexNet.add(tf.keras.layers.Dense(10))
     AlexNet.add(tf.keras.layers.BatchNormalization())
     AlexNet.add(tf.keras.layers.Activation('sigmoid'))
-    return model
+    return AlexNet
 
 
 

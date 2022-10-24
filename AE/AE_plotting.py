@@ -1,13 +1,15 @@
 import numpy as np
 import pickle
+import os
+import cv2
+import matplotlib.pyplot as plt
+
 from helpers.dataset_helpers import  create_cnn_dataset
 from autoencoders2 import *
 from common import *
-import matplotlib.pyplot as plt
-import os
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 ae = AutoEncoder()
-import cv2
 
 def losses_plot(checkpoint_loc, model_name, save= False, saveloc = 'None'):
     plt.figure(1, figsize=(8, 5))

@@ -1,3 +1,4 @@
+## plot AE architecture
 import tensorflow as tf
 import numpy as np
 
@@ -21,6 +22,3 @@ decoder = tf.keras.Sequential([tf.keras.layers.InputLayer(input_shape=(17, 24, 1
 
 print(encoder.summary())
 print(decoder.summary())
-
-img = np.load(r"F:\ScratchDetection\MeasurementCampaigns\ProtoA_October2022\200099\initial_scan_pad34_step73.npy")
-print(img.size())
