@@ -1,17 +1,17 @@
-import matplotlib.patches
 import numpy as np
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+import random, time
+import tensorflow as tf
+import cv2
+import pandas as pd
+
 from helpers.dataset_helpers import create_cnn_dataset, box_index_to_coords, process_anomalous_df_to_numpy
 from helpers.cnn_helpers import crop, encode
 from autoencoders2 import *
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve
-import random, time
-import tensorflow as tf
-import cv2
-import pandas as pd
 from tqdm import tqdm
 import matplotlib.patches as patches
 from sklearn.metrics import confusion_matrix

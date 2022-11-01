@@ -1,9 +1,11 @@
 import numpy as np
-INPUT_DIM = 3
-from helpers.dataset_helpers import create_cnn_dataset
-from helpers.cnn_helpers import  format_data, patch_images, plot_metrics, plot_examples, crop,  tf_bayer2rgb
 import random, time, argparse, os
 import tensorflow as tf
+
+from background_CNNs import *
+from common import *
+from helpers.dataset_helpers import create_cnn_dataset
+from helpers.cnn_helpers import  format_data, patch_images, plot_metrics, plot_examples, crop,  tf_bayer2rgb
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 tf.keras.backend.clear_session()
@@ -37,7 +39,6 @@ load = args.load
 lr = args.lr
 data_format =args.rgb
 
-
 if gpu != 0:
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
@@ -45,7 +46,9 @@ try:
     os.makedirs('saved_CNNs/br_%s' % savename)
 except FileExistsError:
     pass
+
 saveloc = 'saved_CNNs/br_%s' % savename
+# write train params to file
 f = open(saveloc +'/argfile.txt', "w")
 f.write("  Epochs: %s" % num_epochs)
 f.write("  Batch_size: %s" % batch_size)
@@ -56,7 +59,6 @@ f.write("  Data format: %s" % data_format)
 f.close()
 
 random.seed(42)
-from common import *
 base_dir = r"/afs/cern.ch/user/s/sgroenro/anomaly_detection/db"
 dir_det = 'DET/'
 dir_ae = 'AE/'
@@ -66,7 +68,7 @@ images_dir_loc = imgDir_gpu
 X_train = np.load(os.path.join(base_dir, dir_det, 'X_train_DET_backround_20220711.npy'), allow_pickle=True)
 Y_train = np.load(os.path.join(base_dir, dir_det, 'Y_train_DET_backround_20220711.npy'), allow_pickle=True).tolist()
 X_train = [images_dir_loc + s for s in X_train]
-print(len(X_train))
+
 X_test = np.load(os.path.join(base_dir, dir_det, 'X_test_DET_backround_20220711.npy'), allow_pickle=True)
 Y_test = np.load(os.path.join(base_dir, dir_det, 'Y_test_DET_backround_20220711.npy'), allow_pickle=True).tolist()
 X_test = [images_dir_loc + s for s in X_test]
@@ -109,12 +111,10 @@ test_ds_nob = test_ds.map(process_crop, num_parallel_calls=tf.data.experimental.
 train_ds = train_ds_nob.flat_map(patch_images).unbatch().cache()
 test_ds = test_ds_nob.flat_map(patch_images).unbatch().shuffle(200*408)
 
-
 train_norm = train_ds.filter(lambda x,y: y ==0.)
 train_anom = train_ds.filter(lambda x,y: y ==1.)
-print(len(list(train_norm)))
-print(len(list(train_anom)))
-
+print("Number of surface samples: ",len(list(train_norm)))
+print("Number of background samples: ", len(list(train_anom)))
 
 train_ds = train_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 test_ds = test_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -127,7 +127,6 @@ test_ds_batch = test_ds_final.batch(batch_size=batch_size, drop_remainder = Fals
 
 optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
-from background_CNNs import *
 if load == False:
     if model_ID == 'br_1':
         model = br_1
@@ -140,12 +139,10 @@ print(model.summary())
 
 filepath = saveloc +'/br_cnn_%s' % savename
 
-##save every 10th epoch
-#save_every = int(np.floor((len(list(train_ds)))/batch_size)*5)
 checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=filepath, monitor='val_loss', verbose=0, save_best_only=True, save_weights_only=False, mode='auto')
 
 ##save training history to file
-filename = saveloc +'/history_log.csv'
+filename = os.path.join(saveloc, 'history_log.csv')
 history_logger = tf.keras.callbacks.CSVLogger(filename, separator=",", append=True)
 
 print('Starting training:')

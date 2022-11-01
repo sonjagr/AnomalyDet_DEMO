@@ -1,15 +1,17 @@
 import random, time, argparse, os
 os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import numpy as np
-from helpers.dataset_helpers import create_cnn_dataset, process_anomalous_df_to_numpy
-from helpers.cnn_helpers import rotate,rotate_1, rotate_2, rotate_3, bright, format_data, flip_h, flip_v, patch_images, flip, plot_metrics, plot_examples, crop, bright_encode, encode, tf_bayer2rgb
-from autoencoders2 import *
-from common import *
 import tensorflow as tf
 import pandas as pd
+import datetime
+
+from helpers.dataset_helpers import create_cnn_dataset, process_anomalous_df_to_numpy
+from helpers.cnn_helpers import rotate, bright, format_data, patch_images, flip, plot_metrics, plot_examples, crop, bright_encode, encode
+from autoencoders2 import *
+from common import *
 from sklearn.model_selection import train_test_split
 from tensorflow_addons.losses import SigmoidFocalCrossEntropy
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 tf.keras.backend.clear_session()
 
@@ -79,7 +81,6 @@ images_dir_loc = imgDir_gpu
 dir_det = 'db/DET/'
 dir_ae = 'db/AE/'
 
-
 if use_ae == 1:
     ae = AutoEncoder()
     print('Loading autoencoder and data...')
@@ -89,14 +90,13 @@ if use_ae == 1:
 X_list_norm = np.load(os.path.join(base_dir, 'db/AE/NORMAL_TRAIN_20220711.npy'), allow_pickle=True)
 print('        Available normal train, val images', len(X_list_norm))
 
-import datetime
 f = os.path.join(base_dir, 'db/TRAIN_DATABASE')
 with pd.HDFStore( f,  mode='r') as store:
         train_db = store.select('db')
         #date = datetime.datetime.strptime('2022-07-25', '%Y-%m-%d').date()
         #train_db = train_db[train_db.Date <= date]
         cols = train_db.reset_index().Campaign.unique().tolist()
-        print(cols)
+        print("Used campaigns: ", cols)
         print(f'Reading {f}')
 X_train_det_list, Y_train_det_list = process_anomalous_df_to_numpy(train_db)
 
