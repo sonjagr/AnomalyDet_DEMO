@@ -2,9 +2,8 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 import math
-from common import *
-import random
 import cv2
+from common import *
 
 def process_anomalous_df_to_numpy(db):
     db = db[db['orig_boxY'].map(len) > 0]
@@ -62,9 +61,9 @@ def box_to_labels(BoxX, BoxY):
     for i, x in enumerate(BoxX):
         x = int(x)
         y = int(BoxY[i])
-        if (np.mod(x, 160) == 0) and (np.mod(y, 160) == 0):
-            xi = int(x / 160)
-            yi = int(y / 160)
+        if (np.mod(x, BOXSIZE) == 0) and (np.mod(y, BOXSIZE) == 0):
+            xi = int(x / BOXSIZE)
+            yi = int(y / BOXSIZE)
             labels[yi, xi] = 1
         else:
             print('Error in annotation conversion')
@@ -74,13 +73,9 @@ def box_to_labels(BoxX, BoxY):
 def box_index_to_coords(box_index):
     row = math.floor(box_index / 24)
     col = box_index % 24
-    return col*160, row*160
+    return col*BOXSIZE, row*BOXSIZE
 
-def combine_dbs(files, openloc, saveloc, name):
-    files = ['EndOf2021_PM8.h5', 'Fall2021_PM8.h5', 'LongTermIV_2021_ALPS.h5', 'September2021_PM8.h5',
-             'Winter2022_ALPS.h5']
-    openloc = DataBaseFileLocation_local
-    name = 'main_db_bb_crop'
+def combine_dbs(files= ['EndOf2021_PM8.h5', 'Fall2021_PM8.h5', 'LongTermIV_2021_ALPS.h5', 'September2021_PM8.h5','Winter2022_ALPS.h5'], openloc = DataBaseFileLocation_local, name='main_db_bb_crop'):
     saveloc = openloc + name + '.h5'
     append_db = []
     for f in files:
@@ -101,8 +96,3 @@ def rgb2bayer(rgb):
     bayer[1::2, 0::2] = g[1::2, 0::2]
     bayer[1::2, 1::2] = b[1::2, 1::2]
     return bayer
-
-
-
-
-

@@ -40,8 +40,3 @@ combine_datasets(new_train_db, old_train_db, "TRAIN")
 combine_datasets(new_val_db, old_val_db, "VAL")
 combine_datasets(new_test_db, old_test_db, "TEST")
 
-#combined_db = pd.concat([main_db, new_db])
-#print(main_db)
-#print(combined_db)
-
-#combined_db.to_hdf('C:/Users/sgroenro/PycharmProjects/anomaly-detection-2/db/TRAIN_DATABASE_20220805', key='db', mode='w')

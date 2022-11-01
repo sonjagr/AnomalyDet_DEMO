@@ -1,6 +1,5 @@
-## plot AE architecture
+## for plotting AE architecture
 import tensorflow as tf
-import numpy as np
 
 encoder = tf.keras.Sequential([tf.keras.layers.InputLayer(input_shape=(2720, 3840, 1)),
         tf.keras.layers.experimental.preprocessing.Rescaling(1. / 255),

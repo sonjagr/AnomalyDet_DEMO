@@ -70,7 +70,7 @@ if use_ae:
 
 base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
 dir_det = 'DET/'
-dir_ae = 'AE/'
+dir_ae = '../AE/'
 images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
 
 ## extract normal images for training

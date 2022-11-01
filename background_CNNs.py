@@ -1,5 +1,4 @@
 import tensorflow as tf
-import os
 
 br_1 = tf.keras.Sequential([
     tf.keras.layers.InputLayer(input_shape=(160, 160, 1)),

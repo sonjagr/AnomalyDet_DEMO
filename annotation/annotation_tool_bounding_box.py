@@ -1,12 +1,14 @@
+## annotate with bounding boxes
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 import cv2
-from common import *
-from helpers.annotation_helpers import match, get_bad_files_to_process, bb_to_sb
 import os.path
 import matplotlib.patches as patches
+
 from matplotlib import pyplot as plt
+from tqdm import tqdm
+from common import *
+from helpers.annotation_helpers import match, get_bad_files_to_process, bb_to_sb
 
 imgDir = imgDir_pc
 DataBaseFileLocation = DataBaseFileLocation_local

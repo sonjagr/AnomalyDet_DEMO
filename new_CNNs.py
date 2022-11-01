@@ -1,5 +1,4 @@
 import tensorflow as tf
-import os
 
 def model_whole_final_overlap():
     model = tf.keras.Sequential()

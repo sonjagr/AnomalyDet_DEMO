@@ -6,8 +6,8 @@ from matplotlib.ticker import MaxNLocator
 patches = [[231603,199], [142,616]]
 wholes = [[3022,206], [11,286]]
 
-df_cm = pd.DataFrame(patches, index = ["Normal", "Anomalous"],
-                  columns = ["Normal", "Anomalous"])
+df_cm = pd.DataFrame(patches, index = ["Normal", "Anomalous"], columns = ["Normal", "Anomalous"])
+
 plt.figure(figsize = (10,7))
 sn.set(font_scale=2)
 plt.title("Confusion matrix for patches")

@@ -1,11 +1,15 @@
+## bounding box annotations from a list of files (in directory)
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 import cv2
-from common import *
-from helpers.annotation_helpers import match, get_bad_files_to_process, bb_to_sb
 import os.path
 import matplotlib.patches as patches
+import glob
+import re
+
+from common import *
+from helpers.annotation_helpers import match, get_bad_files_to_process, bb_to_sb
+from tqdm import tqdm
 from matplotlib import pyplot as plt
 
 DataBaseFile = 'pre_series'
@@ -18,27 +22,12 @@ extra_cols = ["bound_boxX", "bound_boxY", "bound_box_dimX", "bound_box_dimY", "o
 load_from_file_list = True
 
 loaded_db = None
-## load existing database if it exists
-if os.path.exists(DataBaseFileLocation + DataBaseFile):
+if os.path.exists(os.path.join(DataBaseFileLocation, DataBaseFile)):
     print("Reading existing database file from", DataBaseFile)
-    with pd.HDFStore(DataBaseFileLocation + DataBaseFile, mode="r+") as store:
+    with pd.HDFStore(os.path.join(DataBaseFileLocation, DataBaseFile), mode="r+") as store:
         loaded_db = store["db"]
 
-## if you have a numpy array of files you would like to process, give them here, they are formatted into the database
 if load_from_file_list:
-    #f = os.path.join(base_dir, 'db/test_defective_df.h5')
-    #with pd.HDFStore(f, mode='r') as store:
-    #    train_val_db = store.select('db')
-    #    print(f'Reading {DataBaseFileLocation_local + f}')
-    #train_df = train_val_db
-    #X_train_det_list = train_df['Path'].to_numpy()
-    #X_train_det_list = np.load(base_dir + dir_ae + 'X_train_forcnn_toann_2.npy')
-    #X_test_det_list = np.load(base_dir + dir_ae + 'X_test_forcnn_toann_2.npy')
-
-    #list_to_annotate =  X_train_det_list
-
-    import glob
-    import re
     list_to_annotate = []
     for filename in glob.glob('F:/ScratchDetection/MeasurementCampaigns/Preseries_June2022/300056/' + '*.npy'):
         list_to_annotate = np.append(list_to_annotate, filename)
@@ -46,28 +35,25 @@ if load_from_file_list:
     all_files_db = []
     empty_list = np.array([]).tolist()
     for i in list_to_annotate:
-        i= i.replace('\\', '/')
-        #print(i)
+        i = i.replace('\\', '/')
         _campaign, _dut, _fn = i.split('/')[-3:]
-        #_campaign, _dut, _fn  = re.split(r'/', i)
         _s = i.split('step')[-1].replace('.npy', '')
         all_files_db.append((_campaign, _dut, _s, _fn, False) + ((empty_list),) * len(extra_cols))
 
     all_files_db = pd.DataFrame(all_files_db, columns=DEF_COLS + extra_cols)
     all_files_db = all_files_db.set_index(keys=["Campaign", "DUT", "Step"])
-    #print(all_files_db)
+
     if loaded_db is None:
         loaded_db = all_files_db[all_files_db.Normal == True]
         print('No loaded database')
     else:
         loaded_db = pd.concat([loaded_db, all_files_db[all_files_db.Normal == True]], axis=0)
         loaded_db = loaded_db[~loaded_db.index.duplicated(keep="first")]
-    print(loaded_db)
+
     bad_files_db = all_files_db[all_files_db.Normal == False]
     bad_files_to_process = bad_files_db[~bad_files_db.index.isin(loaded_db.index)]
     bad_files_to_process = bad_files_to_process.assign(processed=False)
 
-## get a list of rescans from a Campaign directory
 elif load_from_file_list == False:
     loaded_db, bad_files_to_process = get_bad_files_to_process(imgDir, Campaigns, extra_cols, loaded_db)
 
@@ -136,13 +122,16 @@ for _c, _img_index in enumerate(tqdm(process_indexes)):
     filepath = os.path.join(imgDir, _img_index[0], _img_index[1], bad_files_to_process.loc[_img_index, "FileName"])
     if _img_index[0] == 'September2021_PM8' and _img_index[1] == '8inch_198ch_N3311_7':
         filepath = os.path.join(imgDir, _img_index[0], _img_index[1] + '/before', bad_files_to_process.loc[_img_index, "FileName"])
+
     selected_boxes_bb, dims = {}, {}
     x_end, y_end = [], []
     fig, ax = plt.subplots(figsize=(16, 10))
     cid = fig.canvas.mpl_connect('button_press_event', onclick_bb)
     bsz = fig.canvas.mpl_connect('button_press_event', box_size)
+
     im = np.load(filepath, allow_pickle=True)
     im = cv2.cvtColor(im, cv2.COLOR_BAYER_RG2RGB)
+
     ax.imshow(im[0:PICTURESIZE_Y, 0:PICTURESIZE_X])
     ax.set_xticks(np.arange(80, PICTURESIZE_X, BOXSIZE_X), minor = True)
     ax.set_yticks(np.arange(80, PICTURESIZE_Y, BOXSIZE_Y), minor = True)
@@ -150,8 +139,10 @@ for _c, _img_index in enumerate(tqdm(process_indexes)):
     ax.set_yticks(np.arange(0, PICTURESIZE_Y, BOXSIZE_Y))
     ax.tick_params(axis='y', which='major', labelsize=16)
     ax.tick_params(axis='x', which='major', labelsize=16, labelrotation=90)
+
     #ax.grid(which = 'minor', color='w', linewidth=0.3, linestyle ='-.', zorder = -2)
     #ax.grid(which= 'major', color='w', linewidth=0.4, linestyle='--', zorder = -2)
+
     plt.xlabel('x', fontsize =16)
     plt.ylabel('y', fontsize =16)
     plt.title(str(_img_index),  fontsize =16)
@@ -198,7 +189,7 @@ for _c, _img_index in enumerate(tqdm(process_indexes)):
         ax.tick_params(axis='x', which='major', labelsize=16, labelrotation = 90)
         ax.grid(which='major',  color='w', linewidth=0.4, linestyle='--', zorder = -2)
         plt.title(str(_img_index),  fontsize =16)
-        plt.xlabel('x',  fontsize =16)
+        plt.xlabel('x', fontsize =16)
         plt.ylabel('y', fontsize =16)
         plt.show()
         plt.pause(0.001)
@@ -224,13 +215,9 @@ for _c, _img_index in enumerate(tqdm(process_indexes)):
         print('Quit: annotations will be saved')
         break
 
-#6. Determine which files were processed and can be joined with the database
 bad_files_processed = bad_files_to_process[bad_files_to_process.processed==True]
 bad_files_processed = bad_files_processed.drop(columns=["processed"])
 bad_files_processed['Date'] = pd.to_datetime('today').date()
 
 loaded_db = pd.concat([loaded_db, bad_files_processed], axis = 0)
-
-#7.: write out database
-DataBaseFile = 'pre_series'
 loaded_db.to_hdf(DataBaseFileLocation + DataBaseFile, key='db', mode='w')

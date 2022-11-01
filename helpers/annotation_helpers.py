@@ -1,5 +1,5 @@
 from common import *
-import os,re, sys
+import os, re, sys
 import pandas as pd
 import numpy as np
 
@@ -204,8 +204,6 @@ def get_all_files_to_process(DataBaseFileLocation, DataBaseFile, imgDir, Campaig
     ## bad files that are in the new database but not in loaded
     bad_files_to_process = bad_files_db[~bad_files_db.index.isin(loaded_db.index)]
     bad_files_to_process = bad_files_to_process.assign(processed=False)
-    #all_files_to_process = all_files_db[~all_files_db.index.isin(loaded_db.index)]
-    #all_files_to_process = all_files_to_process.assign(processed=False)
     return loaded_db, bad_files_to_process
 
 

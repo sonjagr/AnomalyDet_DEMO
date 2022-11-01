@@ -1,3 +1,4 @@
+## train an autoencoder
 import numpy as np
 import tensorflow
 import math, time
