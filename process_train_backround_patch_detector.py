@@ -57,16 +57,16 @@ f.close()
 
 random.seed(42)
 from common import *
-base_dir = r"C:\Users\sgroenro\PycharmProjects\anomaly-detection-2\db"
+base_dir = r"/afs/cern.ch/user/s/sgroenro/anomaly_detection/db"
 dir_det = 'DET/'
 dir_ae = 'AE/'
-images_dir_loc = imgDir_pc
+images_dir_loc = imgDir_gpu
 
 ## extract normal images for training
 X_train = np.load(os.path.join(base_dir, dir_det, 'X_train_DET_backround_20220711.npy'), allow_pickle=True)
 Y_train = np.load(os.path.join(base_dir, dir_det, 'Y_train_DET_backround_20220711.npy'), allow_pickle=True).tolist()
 X_train = [images_dir_loc + s for s in X_train]
-
+print(len(X_train))
 X_test = np.load(os.path.join(base_dir, dir_det, 'X_test_DET_backround_20220711.npy'), allow_pickle=True)
 Y_test = np.load(os.path.join(base_dir, dir_det, 'Y_test_DET_backround_20220711.npy'), allow_pickle=True).tolist()
 X_test = [images_dir_loc + s for s in X_test]
@@ -86,6 +86,7 @@ METRICS = [
       tf.keras.metrics.Recall(name='recall'),
       tf.keras.metrics.AUC(name='auc'),
       tf.keras.metrics.AUC(name='prc', curve='PR'),
+      tf.keras.metrics.Accuracy(name='Acc'),
 ]
 
 @tf.function
@@ -107,6 +108,13 @@ test_ds_nob = test_ds.map(process_crop, num_parallel_calls=tf.data.experimental.
 ## apply patching
 train_ds = train_ds_nob.flat_map(patch_images).unbatch().cache()
 test_ds = test_ds_nob.flat_map(patch_images).unbatch().shuffle(200*408)
+
+
+train_norm = train_ds.filter(lambda x,y: y ==0.)
+train_anom = train_ds.filter(lambda x,y: y ==1.)
+print(len(list(train_norm)))
+print(len(list(train_anom)))
+
 
 train_ds = train_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 test_ds = test_ds.map(format_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)

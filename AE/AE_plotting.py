@@ -1,6 +1,7 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import numpy as np
 import pickle
-import os
 import cv2
 import matplotlib.pyplot as plt
 
@@ -8,7 +9,6 @@ from helpers.dataset_helpers import  create_cnn_dataset
 from autoencoders2 import *
 from common import *
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 ae = AutoEncoder()
 
 def losses_plot(checkpoint_loc, model_name, save= False, saveloc = 'None'):
@@ -155,12 +155,12 @@ def plot_aed(path_to_ae, plotting_dataset, save, saveloc):
 model_name = 'TQ3_2'
 savename = 'TQ3_2_more_params_2'
 home_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/'
-saveloc = os.path.join(home_dir, 'AE_plots')
+saveloc = home_dir
 
 path_to_loss_file = os.path.join(home_dir, 'checkpoints/%s_1_%s/cost.pkl' % (model_name,savename))
-losses_plot(path_to_loss_file, model_name, save= True, saveloc = saveloc)
+losses_plot(path_to_loss_file, model_name, save= False, saveloc = saveloc)
 
-epoch = 227
+epoch = 332
 base_dir = '../db/'
 dir_det = 'DET/'
 images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
@@ -185,7 +185,7 @@ boxX = [(3000,3500)]
 boxY = [(0,300)]
 lower = [(0.55,0.3)]
 times = 5
-plotting_dataset = def_dataset.shuffle(100, seed = 1).take(5)
+#plotting_dataset = def_dataset.shuffle(100, seed = 1).take(5)
 plotting_dataset = plotting_dataset.take(12)
 #plot_aed_zoom(plotting_dataset, boxX, boxY, lower, times)
 plotting_dataset = plotting_dataset.skip(4)

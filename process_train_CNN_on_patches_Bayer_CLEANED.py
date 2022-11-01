@@ -1,15 +1,15 @@
+import random, time, argparse, os
+os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"
 import numpy as np
 from helpers.dataset_helpers import create_cnn_dataset, process_anomalous_df_to_numpy
 from helpers.cnn_helpers import rotate,rotate_1, rotate_2, rotate_3, bright, format_data, flip_h, flip_v, patch_images, flip, plot_metrics, plot_examples, crop, bright_encode, encode, tf_bayer2rgb
 from autoencoders2 import *
 from common import *
-import random, time, argparse, os
 import tensorflow as tf
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from tensorflow_addons.losses import SigmoidFocalCrossEntropy
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = "true"
 
 tf.keras.backend.clear_session()
 
@@ -54,6 +54,8 @@ bright_aug = args.bright_aug
 loss = args.loss
 gamma = args.gamma
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 def write_file():
     f = open('saved_CNNs/%s/argfile.txt' % savename, "w")
     f.write("  Epochs: %s" % num_epochs)
@@ -63,12 +65,8 @@ def write_file():
     f.write("  Lr: %s" % lr)
     f.write("  Loss: %s" % loss)
     f.write("  AE: %s" % use_ae)
-    f.write(
-        "  Gamma: %s" % gamma)
+    f.write("  Gamma: %s" % gamma)
     f.close()
-
-if gpu != 0:
-    os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
 try:
     os.makedirs('saved_CNNs/%s' % savename)
@@ -81,22 +79,28 @@ images_dir_loc = imgDir_gpu
 dir_det = 'db/DET/'
 dir_ae = 'db/AE/'
 
+
 if use_ae == 1:
     ae = AutoEncoder()
     print('Loading autoencoder and data...')
-    ae.load(os.path.join(base_dir, 'checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_322_to_322_epochs'))
+    ae.load(os.path.join(base_dir, 'checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_277_to_277_epochs'))
 
 ## extract normal images for training
 X_list_norm = np.load(os.path.join(base_dir, 'db/AE/NORMAL_TRAIN_20220711.npy'), allow_pickle=True)
 print('        Available normal train, val images', len(X_list_norm))
 
-f = os.path.join(base_dir, 'db/TRAIN_DATABASE_05_09_2022_2')
+import datetime
+f = os.path.join(base_dir, 'db/TRAIN_DATABASE')
 with pd.HDFStore( f,  mode='r') as store:
         train_db = store.select('db')
+        #date = datetime.datetime.strptime('2022-07-25', '%Y-%m-%d').date()
+        #train_db = train_db[train_db.Date <= date]
+        cols = train_db.reset_index().Campaign.unique().tolist()
+        print(cols)
         print(f'Reading {f}')
 X_train_det_list, Y_train_det_list = process_anomalous_df_to_numpy(train_db)
 
-f = os.path.join(base_dir, 'db/VAL_DATABASE_05_09_2022_2')
+f = os.path.join(base_dir, 'db/VAL_DATABASE')
 with pd.HDFStore( f,  mode='r') as store:
         val_db = store.select('db')
         print(f'Reading {f}')
@@ -110,7 +114,7 @@ N_det_train = len(X_train_det_list)
 
 np.random.seed(42)
 
-times_normal = 3
+times_normal = 2
 needed_nbr_of_normals = (N_det_train + N_det_val)*times_normal
 
 X_list_norm = np.random.choice(X_list_norm, needed_nbr_of_normals, replace=False)
@@ -133,7 +137,6 @@ val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list.tolist(), _shuffle=Fa
 ## only normal images
 normal_train_ds = create_cnn_dataset(X_train_normal_list, np.full((int(N_normal_train), PATCHES), 0.))
 normal_val_ds = create_cnn_dataset(X_val_normal_list, np.full((int(N_normal_val), PATCHES), 0.))
-
 
 if load == 1:
     print('    Loading previously trained model...')
@@ -226,7 +229,6 @@ elif use_ae == 0:
     normal_train_ds = normal_train_ds.map(process_crop, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     normal_val_ds = normal_val_ds.map(process_crop, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-## add changes in brighness
 np.random.seed(42)
 
 if bright_aug == 1 and use_ae == 1:
@@ -253,7 +255,7 @@ normal_val_ds = normal_val_ds.flat_map(patch_images).unbatch()
 
 train_ds_anomaly = train_ds.filter(lambda x, y:  filter_anom(y))
 val_ds_anomaly = val_ds.filter(lambda x, y: filter_anom(y))
-plot_examples(train_ds_anomaly.skip(25).take(5))
+plot_examples(train_ds_anomaly.take(3))
 
 nbr_anom_train_patches = len(list(train_ds_anomaly))
 nbr_anom_val_patches = len(list(val_ds_anomaly))
@@ -279,17 +281,6 @@ counter3 = tf.data.Dataset.from_tensor_slices(flip_seeds)
 train_ds_to_flip = tf.data.Dataset.zip((train_ds_anomaly, counter3))
 train_ds_flipped = train_ds_to_flip.map(flip, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-#train_ds_to_rotate = train_ds_anomaly
-#rotated_1 = train_ds_to_rotate.map(rotate_1, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-#rotated_2 = train_ds_to_rotate.map(rotate_2, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-#rotated_3 = train_ds_to_rotate.map(rotate_3, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-#train_ds_rotated = train_ds_anomaly.concatenate(rotated_1).concatenate(rotated_2).concatenate(rotated_3)
-#train_ds_to_flip = train_ds_anomaly
-#flipped_h = train_ds_to_flip.map(flip_h, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-#flipped_v = train_ds_to_flip.map(flip_v, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-#train_flipped = flipped_v.concatenate(flipped_h)
-#train_ds_rotated = train_ds_anomaly.concatenate(train_ds_to_rotate.map(rotate, num_parallel_calls=tf.data.experimental.AUTOTUNE))
-
 train_ds_rotated_flipped = train_ds_anomaly.concatenate(train_ds_rotated).concatenate(train_ds_flipped)
 
 augmented = train_ds_rotated_flipped.cache()
@@ -312,7 +303,7 @@ train_ds_final = train_ds_final.shuffle(buffer_size=normal_train + anomalous_tra
 train_ds_batch = train_ds_final.batch(batch_size=batch_size, drop_remainder = True)
 val_ds_batch = val_ds_final.batch(batch_size=batch_size, drop_remainder = False)
 
-plot_examples(normal_train_ds.skip(15).take(5))
+plot_examples(normal_train_ds.take(3))
 
 time2 = time.time()
 pro_time = time2-time1

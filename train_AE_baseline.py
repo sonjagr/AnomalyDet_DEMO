@@ -8,45 +8,82 @@ from helpers.dataset_helpers import create_cnn_dataset
 import random
 import matplotlib.pyplot as plt
 random.seed(42)
-
-gpu = "3"
+import numpy as np
+from helpers.dataset_helpers import create_cnn_dataset, process_anomalous_df_to_numpy
+from helpers.cnn_helpers import rotate,rotate_1, rotate_2, rotate_3, bright, format_data, flip_h, flip_v, patch_images, flip, plot_metrics, plot_examples, crop, bright_encode, encode, tf_bayer2rgb
+from autoencoders2 import *
+from common import *
+import random, time, argparse, os
+import tensorflow as tf
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from tensorflow_addons.losses import SigmoidFocalCrossEntropy
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = "true"
+gpu = "1"
 
 os.environ["CUDA_VISIBLE_DEVICES"] = gpu
 
 bce = tf.keras.losses.BinaryCrossentropy()
 
+random.seed(42)
+base_dir = TrainDir_gpu
+images_dir_loc = imgDir_gpu
+dir_det = 'db/DET/'
+dir_ae = 'db/AE/'
+
 ae = AutoEncoder()
 print('Loading autoencoder and data...')
-ae.load('/afs/cern.ch/user/s/sgroenro/anomaly_detection/checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_321_to_321_epochs')
+ae.load(os.path.join(base_dir, 'checkpoints/TQ3_2_1_TQ3_2_more_params_2/AE_TQ3_2_322_to_322_epochs'))
 
-base_dir = '/afs/cern.ch/user/s/sgroenro/anomaly_detection/db/'
-dir_det = 'DET/'
-images_dir_loc = '/data/HGC_Si_scratch_detection_data/MeasurementCampaigns/'
-#images_dir_loc = 'F:/ScratchDetection/MeasurementCampaigns/'
+## extract normal images for training
+X_list_norm = np.load(os.path.join(base_dir, 'db/AE/NORMAL_TRAIN_20220711.npy'), allow_pickle=True)
+print('        Available normal train, val images', len(X_list_norm))
 
-X_train_det_list = np.load(base_dir + dir_det + 'X_train_DET.npy', allow_pickle=True)
-X_test = np.load(base_dir + dir_det + 'X_test_DET.npy', allow_pickle=True)
+import datetime
+f = os.path.join(base_dir, 'db/TRAIN_DATABASE_05_09_2022_2')
+with pd.HDFStore( f,  mode='r') as store:
+        train_db = store.select('db')
+        date = datetime.datetime.strptime('2022-07-25', '%Y-%m-%d').date()
+        train_db = train_db[train_db.Date <= date]
+        cols = train_db.reset_index().Campaign.unique().tolist()
+        print(cols)
+        print(f'Reading {f}')
+X_train_det_list, Y_train_det_list = process_anomalous_df_to_numpy(train_db)
+
+f = os.path.join(base_dir, 'db/VAL_DATABASE_05_09_2022_2')
+with pd.HDFStore( f,  mode='r') as store:
+        val_db = store.select('db')
+        date = datetime.datetime.strptime('2022-07-25', '%Y-%m-%d').date()
+        val_db = val_db[val_db.Date <= date]
+        print(f'Reading {f}')
+X_val_det_list,  Y_val_det_list = process_anomalous_df_to_numpy(val_db)
+
+
+f = os.path.join(base_dir, 'db/TEST_DATABASE_05_09_2022_2')
+with pd.HDFStore( f,  mode='r') as store:
+        test_db = store.select('db')
+        date = datetime.datetime.strptime('2022-07-25', '%Y-%m-%d').date()
+        test_db = test_db[test_db.Date <= date]
+        print(f'Reading {f}')
+X_test_det_list,  Y_test_det_list = process_anomalous_df_to_numpy(test_db)
+
 X_train_det_list = [images_dir_loc + s for s in X_train_det_list]
-X_test = [images_dir_loc + s for s in X_test]
-Y_train_det_list = np.load(base_dir + dir_det + 'Y_train_DET.npy', allow_pickle=True).tolist()
-Y_test = np.load(base_dir + dir_det + 'Y_test_DET.npy', allow_pickle=True).tolist()
+X_val_det_list = [images_dir_loc + s for s in X_val_det_list]
+X_test_det_list = [images_dir_loc + s for s in X_test_det_list]
 
-
-N_det_val = int(len(X_test)/2)
-X_val_det_list = X_test[:N_det_val]
-Y_val_det_list = Y_test[:N_det_val]
-
-X_test_det_list = X_test[-N_det_val:]
-Y_test_det_list = Y_test[-N_det_val:]
-
+N_det_val = len(X_val_det_list)
 N_det_train = len(X_train_det_list)
-print('Loaded number of train, val samples: ', N_det_train, N_det_val)
-print('All loaded. Starting processing...')
 
-print(X_train_det_list)
-train_ds = create_cnn_dataset(X_train_det_list, Y_train_det_list, _shuffle=True)
-val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list, _shuffle=True)
-test_ds = create_cnn_dataset(X_test_det_list, Y_test_det_list, _shuffle=True)
+np.random.seed(42)
+
+print('    Loaded number of defective train, val samples: ', N_det_train, N_det_val)
+
+## only images with defects
+train_ds = create_cnn_dataset(X_train_det_list, Y_train_det_list.tolist(), _shuffle=False)
+val_ds = create_cnn_dataset(X_val_det_list, Y_val_det_list.tolist(), _shuffle=False)
+test_ds = create_cnn_dataset(X_test_det_list, Y_test_det_list.tolist(), _shuffle=False)
+
 
 @tf.function
 def crop(img, lbl):
@@ -94,13 +131,12 @@ train_ds = train_ds.map(format)
 val_ds = val_ds.map(format)
 test_ds = test_ds.map(format)
 
-train_norm = train_ds.filter(lambda x,y: y ==0.)#.take(1603)
+train_norm = train_ds.filter(lambda x,y: y ==0.)
 train_anom = train_ds.filter(lambda x,y: y ==1.)
-print(train_norm)
-print(train_anom)
+print(len(list(train_norm)))
+print(len(list(train_anom)))
 train_norm_means = []
 for x, y in train_norm:
-    print(x)
     train_norm_means.append(x.numpy())
 
 train_anom_means = []
