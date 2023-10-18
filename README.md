@@ -2,9 +2,13 @@
 DEMONSTRATION REPOSITORY
 ###                  ###
 
-Demonstration repo of codes used to train an anomaly detector.
+Demonstration repo of codes used to train an anomaly detector.  
 
-Person responsible: sonja.gronroos@cern.ch // smgronroos@gmail.com
+Good placces to check out:  
+
+train_AE.py = training the autoencoder for anomaly enhancement  
+process_train_CNN_on_patches_Bayer_CLEANED.py = training anomaly detecting classifier  
+
 
 The repository contains the Python scripts used for developing the anomaly detector for 8inch HGCAL silicon sensor and partials.
 By running the algorithm with new scan mappings, also other sensor geometries could be inspected.
@@ -12,7 +16,7 @@ The anomaly detector is an ensemble of deep CNNs (referred to as the pre-selecti
 The images produced by the scan program are analysed by the PS, and those images that are flagged to potentially 
 contain anomalies are indicated to the inspector so that the anomalous area can be inspected and potentially cleaned. 
 
-The accuracy of the developed model was shown to be ~0.9. The accuracy is expected to increase if the model is trained further with new data. 
+The accuracy of the developed model was shown to be ~0.95. The accuracy is expected to increase if the model is trained further with new data. 
 Images determined to be normal by the PS can be removed and only those containing anomalies are saved for future use in re-training the model. 
 Only the anomalous images need to be saved for re-training purposes as data is heavily imbalanced and lacks in anomalous areas.  
 
@@ -23,3 +27,4 @@ Video demonstration of a scan of a (very dirty) sensor:
 Publication documenting the results at HGCAL lab at CERN:  
 [Link to paper](https://iopscience.iop.org/article/10.1088/2632-2153/aced7e)
 
+Person responsible: sonja.gronroos@cern.ch // smgronroos@gmail.com
